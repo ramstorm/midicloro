@@ -1,0 +1,74 @@
+MIDIcloro - MIDI clock generator and router
+
+By David Ramström
+
+INTRODUCTION
+MIDIcloro is a 4-to-1 MIDI merger which adds MIDI clock, polyphonic chords and routing of channels to class-compliant USB MIDI devices. The clock, chord and routing settings can be controlled in real-time via MIDI CC. MIDIcloro is a Linux console application intended to be used on the RaspberryPI/Raspbian to provide a small hardware solution, entirely controlled via MIDI, for connecting and improving the capabilities of USB MIDI devices.
+
+
+EXAMPLE USE-CASES:
+Improved sequencer - Add clock, chords and the capability to use more channels to a simple MIDI sequencer.
+USB to DIN MIDI - Use MIDIcloro with USB MIDI devices as inputs and a MIDI interface as output to merge and convert MIDI data from USB to DIN MIDI (if this functionality is all you need, consider the ALSA aconnect utility for a more light-weight solution).
+Clock only - Disable all input ports and use MIDIcloro as a master clock with a fixed tempo, or use a USB MIDI controller as a single input to set the tempo with a knob.
+
+
+MIDI CLOCK
+MIDI clock messages are sent immediately after starting MIDIcloro. An incoming start message resets the clock and the start message is forwarded to the output. Stop messages are also forwarded to the output. Clock signals are sent even after a stop message is received, so that connected equipment relying on MIDI clock can still be played using a keyboard. Any incoming clock messages are filtered out. If MIDI clock is disabled, no clock messages are generated and all incoming start, stop and clock messages are forwarded to the output.
+
+There are two ways of setting the clock tempo. It can be set directly using the configured tempo MIDI CC message: new tempo = configured offset + MIDI CC value (0-127). The tempo can also be set by tapping the tempo MIDI CC message every beat. The first tap will set the tempo directly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
+
+
+CHORD MODE
+Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord. Chord mode is disabled by default, but can be enabled using the configured chord mode MIDI CC message. Available modes (with CC value): OFF (0-7), MINOR (8-15), MAJOR (16-23), MINOR_LOW (24-31), MAJOR_LOW (32-39). Other CC values turn the chord mode off. The LOW modes transpose the highest note in the chord one octave down. More chord modes may be added in the future.
+
+
+CHANNEL ROUTING
+Each device and MIDI channel also has its own routing setting. By changing the channel routing, the current channel will be changed to another of the 16 MIDI channels. Notes, CC messages and other MIDI data with channel will be routed to the new target channel. The routing is set to the current channel by default, and is controlled via the configured routing MIDI CC message. The MIDI CC value range (0-127) is divided into steps of 8, where 0-7 sets channel 1, 8-15 channel 2 and so on.
+
+
+INSTALLATION
+Download the latest binary, connect your devices and start the interactive configuration:
+./midicloro -c
+Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed below. When the configuration is completed, MIDIcloro will start.
+
+To run MIDIcloro with the current settings:
+./midicloro
+
+
+SETTINGS
+The settings are stored in midicloro.cfg. The interactive configuration (see above) is recommended the first time you run MIDIcloro since it detects all connected MIDI devices. The configuration file midicloro.cfg can also be edited manually (a restart of MIDIcloro is needed for the changes to take effect). All parameters are displayed below with default values (and explanations) where applicable:
+
+input1 =
+input2 =
+input3 =
+input4 =
+output =
+enableClock = true (enable or disable clock)
+ignoreProgramChanges = true (ignore or allow incoming program change MIDI messages)
+initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
+tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps slower than this)
+tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps faster than this)
+bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
+tempoMidiCC = 10 (MIDI CC number for setting the tempo)
+chordMidiCC = 11 (MIDI CC number for setting the chord mode)
+routeMidiCC = 12 (MIDI CC number for setting the channel routing)
+
+
+BUILD AND COMPILE
+Install gcc/g++
+Install the Boost C++ libraries
+Install libasound: apt-get install libasound2-dev
+
+Compile MIDIcloro:
+g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex
+
+
+OTHER INFO
+MIDIcloro is built and tested on a RaspberryPI Model B+. It should work without modifications on any Unix system supporting ALSA. It can probably be built from source on Mac OS X and Windows without too much effort.
+
+MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks goes to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
+
+
+LICENSE
+MIDIcloro is licensed under the MIT license, see the LICENSE file for details.
+
