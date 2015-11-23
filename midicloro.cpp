@@ -146,6 +146,7 @@ int main(int argc, char *argv[]) {
 
     // Assign MIDI ports
     if (!openPorts(input1, input2, input3, input4, output)) {
+      cout << "Exiting" << endl;
       cleanUp();
       exit(0);
     }
@@ -371,9 +372,6 @@ string trimPort(bool doTrim, const string& str) {
 }
 
 bool openInputPort(RtMidiIn *in, string port) {
-  if (port.empty())
-    return true;
-
   // Match full name if port contains hardware id (example: 11:00), otherwise remove the hardware id before matching
   bool doTrim = !boost::regex_match(port, boost::regex("(.+)\\s([0-9]+):([0-9]+)"));
   string portName;
@@ -408,11 +406,11 @@ bool openOutputPort(RtMidiOut *out, string port) {
 }
 
 bool openPorts(string i1, string i2, string i3, string i4, string o) {
-  return openInputPort(midiin1, i1) &&
-         openInputPort(midiin2, i2) &&
-         openInputPort(midiin3, i3) &&
-         openInputPort(midiin4, i4) &&
-         openOutputPort(midiout, o);
+  openInputPort(midiin1, i1);
+  openInputPort(midiin2, i2);
+  openInputPort(midiin3, i3);
+  openInputPort(midiin4, i4);
+  return openOutputPort(midiout, o);
 }
 
 void clock(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t) {
@@ -454,7 +452,7 @@ void runInteractiveConfiguration() {
   int userIn;
   int addedIns = 0;
   cout << endl <<
-    "Note about hardware id (HWid): "
+    "Note about hardware id (HWid example: 11:00). "
     "The HWid for a device might change if you connect it to another USB port."
     << endl <<
     "Recommendation: Do not store HWid for single devices. "
