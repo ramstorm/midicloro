@@ -3,7 +3,7 @@ MIDIcloro - MIDI clock generator and router
 By David Ramström
 
 INTRODUCTION
-MIDIcloro is a 4-to-1 MIDI merger which adds MIDI clock, polyphonic chords and routing of channels to class-compliant USB MIDI devices. The clock, chord and routing settings can be controlled in real-time via MIDI CC. MIDIcloro is a Linux console application intended to be used on the RaspberryPI/Raspbian to provide a small hardware solution, entirely controlled via MIDI, for connecting and improving the capabilities of USB MIDI devices.
+MIDIcloro is a 4-to-1 MIDI merger which adds MIDI clock, polyphonic chords and routing of channels to class-compliant USB MIDI devices. The clock, chord and routing settings can be controlled in real-time via MIDI CC. MIDIcloro is a Linux console application intended to be used on the Raspberry Pi/Raspbian to provide a small hardware solution, entirely controlled via MIDI, for connecting and improving the capabilities of USB MIDI devices.
 
 
 EXAMPLE USE-CASES:
@@ -27,12 +27,38 @@ Each device and MIDI channel also has its own routing setting. By changing the c
 
 
 INSTALLATION
-Download the latest binary, connect your devices and start the interactive configuration:
+Install dependencies:
+sudo apt-get update
+sudo apt-get install libasound2-dev
+sudo apt-get install libboost-program-options-dev
+sudo apt-get install libboost-regex-dev
+sudo apt-get install libboost-system-dev
+
+Download the latest binary:
+wget https://github.com/ledfyr/midicloro/releases/download/v1.1/midicloro
+
+Connect your devices and start the interactive configuration:
 ./midicloro -c
 Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed below. When the configuration is completed, MIDIcloro will start.
 
-To run MIDIcloro with the current settings:
+Run MIDIcloro with the current settings:
 ./midicloro
+
+Automatically start midicloro on boot:
+Configure midicloro as described above and verify that it works.
+In the file /etc/rc.local, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a '&' to let startm.sh run as a background process, otherwise your system will hang on boot.
+
+Example:
+sudo vim /etc/rc.local
+Add the following line above "exit 0" in the bottom of the file. Do not forget the '&'.
+/home/pi/midicloro/startm.sh /home/pi/midicloro &
+
+MIDIcloro will now start when booting up, without the need of logging in (this makes it possible to run MIDIcloro on a headless Raspberry Pi).
+
+If the program does not start automatically on boot, try to run it as:
+sudo ./midicloro
+If you get errors regarding missing libraries, make sure that the libasound2-dev and libboost-* libraries exist in /usr/lib/.
+The startm.sh script will print debug information to a file named startm.log placed in the directory you used as parameter to startm.sh. See startm.log for help solving the problem.
 
 
 SETTINGS
@@ -55,18 +81,16 @@ routeMidiCC = 12 (MIDI CC number for setting the channel routing)
 
 
 BUILD AND COMPILE
-Install gcc/g++
-Install the Boost C++ libraries
-Install libasound: apt-get install libasound2-dev
+Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed.
 
 Compile MIDIcloro:
 g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex
 
 
 OTHER INFO
-MIDIcloro is built and tested on a RaspberryPI Model B+. It should work without modifications on any Unix system supporting ALSA. It can probably be built from source on Mac OS X and Windows without too much effort.
+MIDIcloro is built and tested on a Raspberry Pi Model B+ running Raspbian. It may work without modifications on other Linux/Unix systems with ALSA support. MIDIcloro can also probably be built from source for Mac OS X and Windows without too much effort (since Boost and RtMidi are cross-platform software).
 
-MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks goes to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
+MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks go to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
 
 
 LICENSE
