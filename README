@@ -39,7 +39,7 @@ sudo apt-get install libboost-regex-dev
 sudo apt-get install libboost-system-dev
 
 Download the latest binary:
-wget https://github.com/ledfyr/midicloro/releases/download/v1.1/midicloro
+wget https://github.com/ledfyr/midicloro/releases/download/v1.2/midicloro
 
 Connect your devices and start the interactive configuration:
 ./midicloro -c
@@ -50,7 +50,7 @@ Run MIDIcloro with the current settings:
 
 Automatically start midicloro on boot:
 Download the latest version of the auto-start script startm.sh.
-wget https://github.com/ledfyr/midicloro/releases/download/v1.1/startm.sh
+wget https://github.com/ledfyr/midicloro/releases/download/v1.2/startm.sh
 
 Configure midicloro with the inputs/output you wish to use and verify that it works.
 In the file /etc/rc.local, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a '&' to let startm.sh run as a background process, otherwise your system will hang on boot.
