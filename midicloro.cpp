@@ -172,8 +172,10 @@ int main(int argc, char *argv[]) {
     taps.push_front(boost::posix_time::microsec_clock::local_time());
     tapTempoTimes = &taps;
 
+    cout << "Starting" << endl;
     if (enableClock) {
       // Start recurring timer generating MIDI clock
+      cout << "Press ctrl+c to exit" << endl;
       boost::asio::io_service io;
       boost::asio::deadline_timer t(io, boost::posix_time::nanoseconds(clockInterval));
       t.async_wait(boost::bind(clock, boost::asio::placeholders::error, &t));
@@ -372,6 +374,9 @@ string trimPort(bool doTrim, const string& str) {
 }
 
 bool openInputPort(RtMidiIn *in, string port) {
+  if (port.empty())
+    return false;
+
   // Match full name if port contains hardware id (example: 11:00), otherwise remove the hardware id before matching
   bool doTrim = !boost::regex_match(port, boost::regex("(.+)\\s([0-9]+):([0-9]+)"));
   string portName;

@@ -7,9 +7,13 @@ MIDIcloro is a 4-to-1 MIDI merger which adds MIDI clock, polyphonic chords and r
 
 
 EXAMPLE USE-CASES:
-Improved sequencer - Add clock, chords and the capability to use more channels to a simple MIDI sequencer.
+Game Boy as a sequencer with clock - The Nintendo Game Boy can be used as a MIDI sequencer by running LSDJ in MIDI out mode together with an ArduinoBoy. No MIDI clock is generated however, making it hard to sync with e.g. a drum machine. Add a Raspberry Pi running MIDIcloro and a USB MIDI interface to your rig to generate MIDI clock controllable via MIDI CC from the Game Boy. Also, all 16 MIDI channels and simple polyphonic chords can now be used in your LSDJ songs.
+
+Improved sequencer - Add clock, chords and the capability to switch channels using MIDI CC to a simple MIDI sequencer. The sequencer can be connected via USB if available, or via DIN MIDI by using a USB MIDI interface.
+
 USB to DIN MIDI - Use MIDIcloro with USB MIDI devices as inputs and a MIDI interface as output to merge and convert MIDI data from USB to DIN MIDI (if this functionality is all you need, consider the ALSA aconnect utility for a more light-weight solution).
-Clock only - Disable all input ports and use MIDIcloro as a master clock with a fixed tempo, or use a USB MIDI controller as a single input to set the tempo with a knob.
+
+Clock only - Use a Raspberry Pi running MIDIcloro as a master clock with a fixed tempo, or use a USB MIDI controller as a single input to set the tempo with a knob.
 
 
 MIDI CLOCK
