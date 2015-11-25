@@ -7,7 +7,7 @@ MIDIcloro is a 4-to-1 MIDI merger which adds MIDI clock, polyphonic chords and r
 
 
 EXAMPLE USE-CASES:
-Game Boy as a sequencer with clock - The Nintendo Game Boy can be used as a MIDI sequencer by running LSDJ in MIDI out mode together with an ArduinoBoy. No MIDI clock is generated however, making it hard to sync with e.g. a drum machine. Add a Raspberry Pi running MIDIcloro and a USB MIDI interface to your rig to generate MIDI clock controllable via MIDI CC from the Game Boy. Also, all 16 MIDI channels and simple polyphonic chords can now be used in your LSDJ songs.
+Game Boy as a sequencer with clock - The Nintendo Game Boy can be used as a MIDI sequencer by running LSDJ in MIDI out mode together with an ArduinoBoy. No MIDI clock is generated however, making it hard to sync with e.g. a drum machine. Add a Raspberry Pi running MIDIcloro and a USB MIDI interface to your rig to generate MIDI clock controllable via MIDI CC from the Game Boy. Also, all 16 MIDI channels and simple polyphonic chords can now be used in your LSDJ songs. See detailed instructions below on how to use MIDIcloro with your Game Boy.
 
 Improved sequencer - Add clock, chords and the capability to switch channels using MIDI CC to a simple MIDI sequencer. The sequencer can be connected via USB if available, or via DIN MIDI by using a USB MIDI interface.
 
@@ -94,6 +94,31 @@ Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed
 
 Compile MIDIcloro:
 g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex
+
+
+GAME BOY USAGE
+To use MIDIcloro with the Nintendo Game Boy, you need the following: Game Boy, flash cart with LSDJ, Arduinoboy, Raspberry Pi, USB MIDI interface.
+Start by installing MIDIcloro on the Raspberry Pi by following the instructions above. Connect the Game Boy to the Arduinoboy and connect the MIDI out port on the Arduinoboy to a MIDI in port on the USB MIDI interface (this port must be configured as an input in MIDIcloro). Set LSDJ and the Arduinoboy to MIDI out mode and start MIDIcloro on the Raspberry Pi.
+
+To control the clock tempo, chord mode and channel routing, send MIDI CC messages from LSDJ using the X command.
+The high byte of the X command sets the CC number as follows (high byte value = CC number): 0=1,1=2,2=3,3=7,4=10,5=11,6=12.
+The low byte of the X command sets the CC value from 0 - 120 in steps of 8 (low byte value = CC value): 0=0,1=8,2=16, ... ,E=112,F=120.
+The default CC numbers are 10 (X4_) for clock tempo, 11 (X5_) for chord mode and 12 (X6_) for channel routing. The default clock tempo offset is 70.
+
+Examples (using default values):
+
+X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
+X4A - If sent every beat: sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
+
+X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
+X52 - Same as above but generating a major chord.
+X53 - Same as above but generating a minor-low chord.
+X54 - Same as above but generating a major-low chord.
+X50 - Disables the chord mode.
+
+X60 - Route MIDI data sent on the current channel to MIDI channel 1.
+X64 - Route MIDI data sent on the current channel to MIDI channel 5.
+X6F - Route MIDI data sent on the current channel to MIDI channel 16.
 
 
 OTHER INFO
