@@ -121,12 +121,29 @@ X64 - Route MIDI data sent on the current channel to MIDI channel 5.
 X6F - Route MIDI data sent on the current channel to MIDI channel 16.
 
 
+LIST OF SUPPORTED USB MIDI DEVICES
+Rule of thumb: devices stated to be class compliant or known to be working in Linux will probably work with MIDIcloro on a Raspberry Pi.
+Please contact me if you find a working/non-working device not listed here and I will update the list.
+
+Known working devices:
+IK Multimedia iRig Keys
+E-MU XMidi 1X1
+
+Known problematic devices (not working out-of-the-box):
+M-Audio Midisport Uno
+
+
 OTHER INFO
 MIDIcloro is built and tested on a Raspberry Pi Model B+ running Raspbian. It may work without modifications on other Linux/Unix systems with ALSA support. MIDIcloro can also probably be built from source for Mac OS X and Windows without too much effort (since Boost and RtMidi are cross-platform software).
 
 MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks go to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
 
 
+CONTACT
+Ledfyr at chipmusic.org
+david.ramstrom (at) gmail _dot_ com
+
+
 LICENSE
-MIDIcloro is licensed under the MIT license, see the LICENSE file for details.
+MIDIcloro is licensed under the MIT license, see LICENSE.txt for details.
 
