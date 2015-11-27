@@ -22,7 +22,7 @@ while true; do
   echo "ls:" >> $logfile
   ls -la >> $logfile
   ./midicloro & >> $logfile
-  sleep 10s
+  sleep 5s
   echo "ps:" >> $logfile
   if ps aux | grep -v 'grep' | grep -v 'startm' | grep 'midicloro' >> $logfile ; then
     echo "Successfully started midicloro, exiting startm" >> $logfile

@@ -34,9 +34,9 @@ INSTALLATION
 Install dependencies:
 sudo apt-get update
 sudo apt-get install libasound2-dev
+sudo apt-get install libboost-system-dev
 sudo apt-get install libboost-program-options-dev
 sudo apt-get install libboost-regex-dev
-sudo apt-get install libboost-system-dev
 
 Download the latest binary and make it executable:
 wget https://github.com/ledfyr/midicloro/releases/download/v1.2/midicloro
@@ -57,16 +57,16 @@ chmod +x startm.sh
 Configure midicloro with the inputs/output you wish to use and verify that it works.
 In the file /etc/rc.local, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a '&' to let startm.sh run as a background process, otherwise your system will hang on boot.
 
-Example:
-sudo vim /etc/rc.local
+Example (midicloro and startm.sh are downloaded to /home/pi):
+sudo nano /etc/rc.local
 Add the following line above "exit 0" in the bottom of the file. Do not forget the '&'.
-/home/pi/midicloro/startm.sh /home/pi/midicloro &
+/home/pi/startm.sh /home/pi &
 
 MIDIcloro will now start when booting up, without the need of logging in (this makes it possible to run MIDIcloro on a headless Raspberry Pi).
 
 If the program does not start automatically on boot, try to run it as:
 sudo ./midicloro
-If you get errors regarding missing libraries, make sure that the libasound2-dev and libboost-* libraries exist in /usr/lib/.
+If you get errors regarding missing libraries, make sure that the libasound2-dev and libboost 1.55.0 libraries exist in /usr/lib/.
 The startm.sh script will print debug information to a file named startm.log placed in the directory you used as parameter to startm.sh. See startm.log for help solving the problem.
 
 
