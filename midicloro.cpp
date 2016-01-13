@@ -377,7 +377,7 @@ bool openInputPort(RtMidiIn *in, string port) {
   if (port.empty())
     return false;
 
-  // Match full name if port contains hardware id (example: 11:00), otherwise remove the hardware id before matching
+  // Match full name if port contains hardware id (example: 11:0), otherwise remove the hardware id before matching
   bool doTrim = !boost::regex_match(port, boost::regex("(.+)\\s([0-9]+):([0-9]+)"));
   string portName;
   unsigned int i = 0, nPorts = in->getPortCount();
@@ -394,7 +394,7 @@ bool openInputPort(RtMidiIn *in, string port) {
 }
 
 bool openOutputPort(RtMidiOut *out, string port) {
-  // Match full name if port contains hardware id (example: 11:00), otherwise remove the hardware id before matching
+  // Match full name if port contains hardware id (example: 11:0), otherwise remove the hardware id before matching
   bool doTrim = !boost::regex_match(port, boost::regex("(.+)\\s([0-9]+):([0-9]+)"));
   string portName;
   unsigned int i = 0, nPorts = out->getPortCount();
@@ -457,7 +457,7 @@ void runInteractiveConfiguration() {
   int userIn;
   int addedIns = 0;
   cout << endl <<
-    "Note about hardware id (HWid example: 11:00). "
+    "Note about hardware id (HWid, example: 11:0). "
     "The HWid for a device might change if you connect it to another USB port."
     << endl <<
     "Recommendation: Do not store HWid for single devices. "
