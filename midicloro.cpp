@@ -5,11 +5,8 @@
 // Copyright (c) 2015 David Ramstrom
 // This project is licensed under the terms of the MIT license
 //
-// Compile:
-// g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex
-//
 // Run:
-// midicloro [-c : optional, start interactive configuration]
+// ./midicloro [-c to start interactive configuration]
 //
 //***************************************
 
@@ -41,10 +38,21 @@ namespace convert {
 
 enum Chord {
   OFF,
-  MINOR,
-  MINOR_LO,
-  MAJOR,
-  MAJOR_LO
+  MINOR3,
+  MAJOR3,
+  MINOR3_LO,
+  MAJOR3_LO,
+  MINOR2,
+  MAJOR2,
+  M7,
+  MAJ7,
+  M9,
+  MAJ9,
+  SUS4,
+  POWER2,
+  POWER3,
+  OCTAVE2,
+  OCTAVE3
 };
 
 RtMidiIn *midiin1 = 0;
@@ -205,7 +213,7 @@ int main(int argc, char *argv[]) {
 }
 
 void usage(void) {
-  cout << "Usage: midicloro [-c : optional, start interactive configuration]" << endl;
+  cout << "Usage: ./midicloro [-c to start interactive configuration]" << endl;
   exit(0);
 }
 
@@ -233,25 +241,82 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
     case OFF:
       midiout->sendMessage(message);
       break;
-    case MINOR:
+    case MINOR3:
       midiout->sendMessage(message);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       break;
-    case MINOR_LO:
-      transposeAndSend(message, -5);
-      transposeAndSend(message, 5);
-      transposeAndSend(message, 3);
-      break;
-    case MAJOR:
+    case MAJOR3:
       midiout->sendMessage(message);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       break;
-    case MAJOR_LO:
+    case MINOR3_LO:
+      transposeAndSend(message, -5);
+      transposeAndSend(message, 5);
+      transposeAndSend(message, 3);
+      break;
+    case MAJOR3_LO:
       transposeAndSend(message, -5);
       transposeAndSend(message, 5);
       transposeAndSend(message, 4);
+      break;
+    case MINOR2:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 3);
+      break;
+    case MAJOR2:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 4);
+      break;
+    case M7:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 3);
+      transposeAndSend(message, 4);
+      transposeAndSend(message, 3);
+      break;
+    case MAJ7:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 4);
+      transposeAndSend(message, 3);
+      transposeAndSend(message, 4);
+      break;
+    case M9:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 3);
+      transposeAndSend(message, 4);
+      transposeAndSend(message, 3);
+      transposeAndSend(message, 4);
+      break;
+    case MAJ9:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 4);
+      transposeAndSend(message, 3);
+      transposeAndSend(message, 4);
+      transposeAndSend(message, 3);
+      break;
+    case SUS4:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 5);
+      transposeAndSend(message, 2);
+      break;
+    case POWER2:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 7);
+      break;
+    case POWER3:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 7);
+      transposeAndSend(message, 5);
+      break;
+    case OCTAVE2:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 12);
+      break;
+    case OCTAVE3:
+      midiout->sendMessage(message);
+      transposeAndSend(message, 12);
+      transposeAndSend(message, 12);
       break;
     default:
       midiout->sendMessage(message);
@@ -260,24 +325,23 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
 }
 
 void setChordMode(int source, int channel, int value) {
-  if (value >= 0 && value < 8) {
-    chordModes[source][channel] = OFF;
-  }
-  else if (value >= 8 && value < 16) {
-    chordModes[source][channel] = MINOR;
-  }
-  else if (value >= 16 && value < 24) {
-    chordModes[source][channel] = MINOR_LO;
-  }
-  else if (value >= 24 && value < 32) {
-    chordModes[source][channel] = MAJOR;
-  }
-  else if (value >= 32 && value < 40) {
-    chordModes[source][channel] = MAJOR_LO;
-  }
-  else {
-    chordModes[source][channel] = OFF;
-  }
+  if (value >= 0 && value < 8) chordModes[source][channel] = OFF;
+  else if (value >= 8 && value < 16) chordModes[source][channel] = MINOR3;
+  else if (value >= 16 && value < 24) chordModes[source][channel] = MAJOR3;
+  else if (value >= 24 && value < 32) chordModes[source][channel] = MINOR3_LO;
+  else if (value >= 32 && value < 40) chordModes[source][channel] = MAJOR3_LO;
+  else if (value >= 40 && value < 48) chordModes[source][channel] = MINOR2;
+  else if (value >= 48 && value < 56) chordModes[source][channel] = MAJOR2;
+  else if (value >= 56 && value < 64) chordModes[source][channel] = M7;
+  else if (value >= 64 && value < 72) chordModes[source][channel] = MAJ7;
+  else if (value >= 72 && value < 80) chordModes[source][channel] = M9;
+  else if (value >= 80 && value < 88) chordModes[source][channel] = MAJ9;
+  else if (value >= 88 && value < 96) chordModes[source][channel] = SUS4;
+  else if (value >= 96 && value < 104) chordModes[source][channel] = POWER2;
+  else if (value >= 104 && value < 112) chordModes[source][channel] = POWER3;
+  else if (value >= 112 && value < 120) chordModes[source][channel] = OCTAVE2;
+  else if (value >= 120 && value < 128) chordModes[source][channel] = OCTAVE3;
+  else chordModes[source][channel] = OFF;
 }
 
 void routeChannel(vector<unsigned char> *message, int source) {
