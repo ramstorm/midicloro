@@ -13,9 +13,11 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
+#include <ctime>
 #include <limits>
 #include <sstream>
 #include <string>
+#include <algorithm>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -23,6 +25,7 @@
 #include <boost/circular_buffer.hpp>
 #include <boost/program_options.hpp>
 #include <boost/regex.hpp>
+#include <boost/random.hpp>
 #include "rtmidi/RtMidi.h"
 
 using namespace std;
@@ -37,7 +40,7 @@ namespace convert {
 }
 
 enum Chord {
-  OFF,
+  CHORD_OFF,
   MINOR3,
   MAJOR3,
   MINOR3_LO,
@@ -55,6 +58,12 @@ enum Chord {
   OCTAVE3
 };
 
+enum Velo {
+  VEL_ON,
+  VEL_OFF,
+  VEL_RDM
+}
+
 RtMidiIn *midiin1 = 0;
 RtMidiIn *midiin2 = 0;
 RtMidiIn *midiin3 = 0;
@@ -65,10 +74,13 @@ bool ignoreProgramChanges;
 int tempoMidiCC;
 int chordMidiCC;
 int routeMidiCC;
+int velocityMidiCC;
 int bpmOffsetForMidiCC;
 long clockInterval; // Clock interval in ns
 long tapTempoMinInterval; // Tap-tempo min interval in ns
 long tapTempoMaxInterval; // Tap-tempo max interval in ns
+int velocityRandomOffset;
+boost::mt19937 *randomGenerator;
 boost::asio::deadline_timer *clockTimer = 0;
 vector<unsigned char> *clockMessage;
 int channelRouting[4][16] = {{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
@@ -79,16 +91,27 @@ int chordModes[4][16] = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                          {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                          {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
                          {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
+int velocityModes[4][16] = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+                            {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
+int velocity[4][16] = {{100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
+                       {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
+                       {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
+                       {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100}};
 boost::circular_buffer<boost::posix_time::ptime> *tapTempoTimes;
 const char *CONFIG_FILE = "midicloro.cfg";
 
 void usage(void);
+double random01();
 bool ignoreMessage(unsigned char msgByte);
 void transposeAndSend(vector<unsigned char> *message, int semiNotes);
 void sendNoteOrChord(vector<unsigned char> *message, int source);
 void setChordMode(int source, int channel, int value);
 void routeChannel(vector<unsigned char> *message, int source);
 void setChannelRouting(int source, int channel, int newChannel);
+void applyVelocity(vector<unsigned char> *message, int source);
+void setVelocityMode(int source, int channel, int value);
 long tapTempo();
 void handleMessage(vector<unsigned char> *message, int source);
 void messageAtIn1(double deltatime, vector<unsigned char> *message, void */*userData*/);
@@ -132,9 +155,11 @@ int main(int argc, char *argv[]) {
       ("tapTempoMinBpm", po::value<int>(&tapTempoMinBpm)->default_value(80), "tapTempoMinBpm")
       ("tapTempoMaxBpm", po::value<int>(&tapTempoMaxBpm)->default_value(200), "tapTempoMaxBpm")
       ("bpmOffsetForMidiCC", po::value<int>(&bpmOffsetForMidiCC)->default_value(70), "bpmOffsetForMidiCC")
+      ("velocityRandomOffset", po::value<int>(&velocityRandomOffset)->default_value(-40), "velocityRandomOffset")
       ("tempoMidiCC", po::value<int>(&tempoMidiCC)->default_value(10), "tempoMidiCC")
       ("chordMidiCC", po::value<int>(&chordMidiCC)->default_value(11), "chordMidiCC")
-      ("routeMidiCC", po::value<int>(&routeMidiCC)->default_value(12), "routeMidiCC");
+      ("routeMidiCC", po::value<int>(&routeMidiCC)->default_value(12), "routeMidiCC")
+      ("velocityMidiCC", po::value<int>(&velocityMidiCC)->default_value(7), "velocityMidiCC");
     po::variables_map vm;
 
     ifstream file(CONFIG_FILE);
@@ -145,6 +170,8 @@ int main(int argc, char *argv[]) {
     clockInterval = 60000000000/(initialBpm*24);
     tapTempoMaxInterval = 60000000000/tapTempoMinBpm;
     tapTempoMinInterval = 60000000000/tapTempoMaxBpm;
+
+    randomGenerator = new boost::mt19937(time(0));
 
     midiin1 = new RtMidiIn();
     midiin2 = new RtMidiIn();
@@ -217,6 +244,11 @@ void usage(void) {
   exit(0);
 }
 
+double random01() {
+  static boost::uniform_01<boost::mt19937> dist(*randomGenerator);
+  return dist();
+}
+
 bool ignoreMessage(unsigned char msgByte) {
   if ((enableClock && (msgByte == BOOST_BINARY(11111000))) || // MIDI clock
       (ignoreProgramChanges && ((msgByte & BOOST_BINARY(11110000)) == BOOST_BINARY(11000000)))) // Program change
@@ -238,7 +270,7 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
   int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
   // Handle chord mode
   switch(chordModes[source][channel]) {
-    case OFF:
+    case CHORD_OFF:
       midiout->sendMessage(message);
       break;
     case MINOR3:
@@ -325,7 +357,7 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
 }
 
 void setChordMode(int source, int channel, int value) {
-  if (value >= 0 && value < 8) chordModes[source][channel] = OFF;
+  if (value >= 0 && value < 8) chordModes[source][channel] = CHORD_OFF;
   else if (value >= 8 && value < 16) chordModes[source][channel] = MINOR3;
   else if (value >= 16 && value < 24) chordModes[source][channel] = MAJOR3;
   else if (value >= 24 && value < 32) chordModes[source][channel] = MINOR3_LO;
@@ -341,7 +373,7 @@ void setChordMode(int source, int channel, int value) {
   else if (value >= 104 && value < 112) chordModes[source][channel] = POWER3;
   else if (value >= 112 && value < 120) chordModes[source][channel] = OCTAVE2;
   else if (value >= 120 && value < 128) chordModes[source][channel] = OCTAVE3;
-  else chordModes[source][channel] = OFF;
+  else chordModes[source][channel] = CHORD_OFF;
 }
 
 void routeChannel(vector<unsigned char> *message, int source) {
@@ -352,6 +384,46 @@ void routeChannel(vector<unsigned char> *message, int source) {
 void setChannelRouting(int source, int channel, int newChannel) {
   if (newChannel >= 0 && newChannel <= 127)
     channelRouting[source][channel] = newChannel/8;
+}
+
+void applyVelocity(vector<unsigned char> *message, int source) {
+  int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
+  if (velocityModes[source][channel] == VEL_OFF || message->size() < 3)
+    return;
+
+  if (velocityModes[source][channel] == VEL_RDM) {
+    if (velocityRandomOffset < 0)
+      (*message)[2] = max(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 0);
+    else if (velocityRandomOffset > 0)
+      (*message)[2] = min(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 127);
+    else
+      (*message)[2] = (int)(random01()*127);
+  }
+  else {
+    (*message)[2] = velocity[source][channel];
+  }
+}
+
+void setVelocityMode(int source, int channel, int value) {
+  if (value == 127) {
+    velocityModes[source][channel] = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
+  }
+  else if (value == 0) {
+    velocityModes[source][channel] = VEL_OFF;
+  }
+  else {
+    // Scale value to the full range 0-127
+    if (value > 64) {
+      value += 8*(value - 64)/56;
+      value = min(value, 127);
+    }
+    else if (value < 64) {
+      value -= 8*(64 - value)/56
+      value = max(value, 0);
+    }
+    velocity[source][channel] = value;
+    velocityModes[source][channel] = VEL_ON;
+  }
 }
 
 long tapTempo() {
@@ -376,6 +448,7 @@ void handleMessage(vector<unsigned char> *message, int source) {
   // Note on/off: send note or chord
   if (((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
     routeChannel(message, source);
+    applyVelocity(message, source);
     sendNoteOrChord(message, source);
   }
   // Start message: pass it through and reset clock
@@ -404,6 +477,12 @@ void handleMessage(vector<unsigned char> *message, int source) {
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
             (*message)[1] == routeMidiCC) {
     setChannelRouting(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
+  }
+  // Velocity MIDI CC: set velocity mode
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
+            (*message)[1] == velocityMidiCC) {
+    routeChannel(message, source);
+    setVelocityMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
   // Other MIDI messages
   else if (!ignoreMessage((*message)[0])) {
@@ -613,7 +692,7 @@ void runInteractiveConfiguration() {
     cfg += string("tapTempoMinBpm = 80") + "\n";
   else
     cfg += string("tapTempoMinBpm = ") + convert::to_string(userIn) + "\n";
-  
+
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
@@ -622,7 +701,7 @@ void runInteractiveConfiguration() {
     cfg += string("tapTempoMaxBpm = 200") + "\n";
   else
     cfg += string("tapTempoMaxBpm = ") + convert::to_string(userIn) + "\n";
-  
+
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
@@ -631,7 +710,16 @@ void runInteractiveConfiguration() {
     cfg += string("bpmOffsetForMidiCC = 70") + "\n";
   else
     cfg += string("bpmOffsetForMidiCC = ") + convert::to_string(userIn) + "\n";
-  
+
+  cin.clear();
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+  cout << "Enter velocity random offset (default -40): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn < -127 || userIn > 127)
+    cfg += string("velocityRandomOffset = -40") + "\n";
+  else
+    cfg += string("velocityRandomOffset = ") + convert::to_string(userIn) + "\n";
+
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
@@ -640,7 +728,7 @@ void runInteractiveConfiguration() {
     cfg += string("tempoMidiCC = 10") + "\n";
   else
     cfg += string("tempoMidiCC = ") + convert::to_string(userIn) + "\n";
-  
+
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
@@ -658,6 +746,15 @@ void runInteractiveConfiguration() {
     cfg += string("routeMidiCC = 12") + "\n";
   else
     cfg += string("routeMidiCC = ") + convert::to_string(userIn) + "\n";
+
+  cin.clear();
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+  cout << "Enter velocity MIDI CC number (default 7): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
+    cfg += string("velocityMidiCC = 7") + "\n";
+  else
+    cfg += string("velocityMidiCC = ") + convert::to_string(userIn) + "\n";
 
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
