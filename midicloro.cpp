@@ -62,7 +62,7 @@ enum Velo {
   VEL_ON,
   VEL_OFF,
   VEL_RDM
-}
+};
 
 RtMidiIn *midiin1 = 0;
 RtMidiIn *midiin2 = 0;
@@ -418,11 +418,12 @@ void setVelocityMode(int source, int channel, int value) {
       value = min(value, 127);
     }
     else if (value < 64) {
-      value -= 8*(64 - value)/56
+      value -= 8*(64 - value)/56;
       value = max(value, 0);
     }
     velocity[source][channel] = value;
-    velocityModes[source][channel] = VEL_ON;
+    if (velocityModes[source][channel] == VEL_OFF)
+      velocityModes[source][channel] = VEL_ON;
   }
 }
 
