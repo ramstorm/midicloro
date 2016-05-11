@@ -80,6 +80,7 @@ long clockInterval; // Clock interval in ns
 long tapTempoMinInterval; // Tap-tempo min interval in ns
 long tapTempoMaxInterval; // Tap-tempo max interval in ns
 int velocityRandomOffset;
+bool velocityMultiDeviceCtrl;
 boost::mt19937 *randomGenerator;
 boost::asio::deadline_timer *clockTimer = 0;
 vector<unsigned char> *clockMessage;
@@ -156,6 +157,7 @@ int main(int argc, char *argv[]) {
       ("tapTempoMaxBpm", po::value<int>(&tapTempoMaxBpm)->default_value(200), "tapTempoMaxBpm")
       ("bpmOffsetForMidiCC", po::value<int>(&bpmOffsetForMidiCC)->default_value(70), "bpmOffsetForMidiCC")
       ("velocityRandomOffset", po::value<int>(&velocityRandomOffset)->default_value(-40), "velocityRandomOffset")
+      ("velocityMultiDeviceCtrl", po::value<bool>(&velocityMultiDeviceCtrl)->default_value(true), "velocityMultiDeviceCtrl")
       ("tempoMidiCC", po::value<int>(&tempoMidiCC)->default_value(10), "tempoMidiCC")
       ("chordMidiCC", po::value<int>(&chordMidiCC)->default_value(11), "chordMidiCC")
       ("routeMidiCC", po::value<int>(&routeMidiCC)->default_value(12), "routeMidiCC")
@@ -406,10 +408,23 @@ void applyVelocity(vector<unsigned char> *message, int source) {
 
 void setVelocityMode(int source, int channel, int value) {
   if (value == 127) {
-    velocityModes[source][channel] = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
+    if (velocityMultiDeviceCtrl) {
+      int newMode = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
+      for (int i=source; i<4; i++)
+        velocityModes[i][channel] = newMode;
+    }
+    else {
+      velocityModes[source][channel] = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
+    }
   }
   else if (value == 0) {
-    velocityModes[source][channel] = VEL_OFF;
+    if (velocityMultiDeviceCtrl) {
+      for (int i=source; i<4; i++)
+        velocityModes[i][channel] = VEL_OFF;
+    }
+    else {
+      velocityModes[source][channel] = VEL_OFF;
+    }
   }
   else {
     // Scale value to the full range 0-127
@@ -421,9 +436,18 @@ void setVelocityMode(int source, int channel, int value) {
       value -= 8*(64 - value)/56;
       value = max(value, 0);
     }
-    velocity[source][channel] = value;
-    if (velocityModes[source][channel] == VEL_OFF)
-      velocityModes[source][channel] = VEL_ON;
+    if (velocityMultiDeviceCtrl) {
+      for (int i=source; i<4; i++)
+        velocity[i][channel] = value;
+      if (velocityModes[source][channel] == VEL_OFF)
+        for (int i=source; i<4; i++)
+          velocityModes[i][channel] = VEL_ON;
+    }
+    else {
+      velocity[source][channel] = value;
+      if (velocityModes[source][channel] == VEL_OFF)
+        velocityModes[source][channel] = VEL_ON;
+    }
   }
 }
 
@@ -723,6 +747,13 @@ void runInteractiveConfiguration() {
 
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+  cout << "Enable velocity multi device control (e.g. input 2 controls the velocity setting for input 2, 3 and 4)? (Y/n): ";
+  getline(cin, keyHit);
+  if (keyHit == "n")
+    cfg += string("velocityMultiDeviceCtrl = false") + "\n";
+  else
+    cfg += string("velocityMultiDeviceCtrl = true") + "\n";
 
   cout << "Enter tempo MIDI CC number (default 10): ";
   if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
