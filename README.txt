@@ -3,7 +3,7 @@ MIDIcloro - MIDI clock generator and router
 By David Ramström
 
 INTRODUCTION
-MIDIcloro adds MIDI clock, polyphonic chords, velocity and routing of channels to USB MIDI devices connected to a Raspberry Pi. It is also a 4-to-1 merger for USB MIDI devices. DIN MIDI can be used via a USB MIDI interface. The clock, chord and routing settings can be controlled in real-time via MIDI CC.
+MIDIcloro adds MIDI clock, polyphonic chords, velocity and routing of channels to USB MIDI devices connected to a Raspberry Pi. Up to 4 input devices can be connected. The MIDI data from the inputs will be merged and sent to 1 output device. A USB MIDI interface can be used to connect devices with plain old MIDI connectors. The clock, chord, routing and velocity settings can be controlled in real-time via MIDI CC sent from the input devices.
 
 
 EXAMPLE USE-CASES:
