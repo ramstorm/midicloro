@@ -3,15 +3,19 @@ MIDIcloro - MIDI clock generator and router
 By David Ramström
 
 INTRODUCTION
-MIDIcloro adds MIDI clock, polyphonic chords, velocity and routing of channels to USB MIDI devices connected to a Raspberry Pi. Up to 4 input devices can be connected. The MIDI data from the inputs will be merged and sent to 1 output device. A USB MIDI interface can be used to connect devices with plain old MIDI connectors. The clock, chord, routing and velocity settings can be controlled in real-time via MIDI CC sent from the input devices.
+MIDIcloro turns your Raspberry Pi into a MIDI handling workhorse. This is what it does:
+- Takes the MIDI data from up to 4 USB input devices (sequencers, keyboards, controllers) and merges it into 1 output.
+- Adds MIDI clock, polyphonic chords, velocity and routing of channels to the MIDI data stream.
+- Settings can be controlled in real-time via MIDI CC sent from the input devices.
+- Plain old MIDI connectors (5-pin DIN) are supported by using a USB MIDI interface.
 
 
 EXAMPLE USE-CASES:
-Improved sequencer - Add clock, chords, velocity and channel routing (all controlled via MIDI CC) to your MIDI sequencer. The sequencer can be connected via USB if available, or via DIN MIDI by using a USB MIDI interface.
+Sequencer/keyboard rig - Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
 
-Clock only - Use a Raspberry Pi running MIDIcloro as a master clock. You can use a USB MIDI controller to set the tempo with a knob.
+Gameboy as sequencer - Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/dongle.
 
-Gameboy as a sequencer with added capabilities (MIDI clock, chords, channel routing, velocity). You need both an Arduinoboy and a Raspberry Pi to do this.
+Clock only - Use a Raspberry Pi running MIDIcloro as a master clock. You can use a MIDI controller to set the tempo with a knob.
 
 
 MIDI CLOCK
@@ -21,11 +25,35 @@ There are two ways of setting the clock tempo. It can be set directly using the 
 
 
 CHORD MODE
-Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord. Chord mode is disabled by default, but can be enabled using the configured chord mode MIDI CC message. Available modes (with CC value): OFF (0-7), MINOR (8-15), MAJOR (16-23), MINOR_LOW (24-31), MAJOR_LOW (32-39). Other CC values turn the chord mode off. The LOW modes transpose the highest note in the chord one octave down. More chord modes may be added in the future.
+Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord.
+Available modes (CC value 0-7=OFF, 8-15=MINOR3, 16-23=MAJOR3 and so on):
+OFF
+MINOR3
+MAJOR3
+MINOR3_LO
+MAJOR3_LO
+MINOR2
+MAJOR2
+M7
+MAJ7
+M9
+MAJ9
+SUS4
+POWER2
+POWER3
+OCTAVE2
+OCTAVE3
 
 
 CHANNEL ROUTING
 Each device and MIDI channel also has its own routing setting. By changing the channel routing, the current channel will be changed to another of the 16 MIDI channels. Notes, CC messages and other MIDI data with channel will be routed to the new target channel. The routing is set to the current channel by default, and is controlled via the configured routing MIDI CC message. The MIDI CC value range (0-127) is divided into steps of 8, where 0-7 sets channel 1, 8-15 channel 2 and so on.
+
+
+VELOCITY
+Each device and MIDI channel has a velocity setting set via MIDI CC as follows: CC value=0 => OFF (velocity from the input device is unchanged), CC value=1-126 (all notes get velocity=value), CC value=127 (toggles random velocity mode on/off).
+Random velocity mode: all notes get a random velocity between the latest CC value and a configurable offset.
+Velocity is scaled to get the whole 0-127 interval between CC value 8-120.
+NOTE: Velocity setting is mirrored to all devices with number higher than the current device. This can be turned off in the settings.
 
 
 INSTALLATION
@@ -47,12 +75,12 @@ Available input and output ports will be listed and you will be prompted to sele
 Run MIDIcloro with the current settings:
 ./midicloro
 
-Automatically start midicloro on boot:
+Automatically start MIDIcloro on boot:
 Download the latest version of the auto-start script startm.sh and make it executable.
 wget https://github.com/ledfyr/midicloro/releases/download/v1.2/startm.sh
 chmod +x startm.sh
 
-Configure midicloro with the inputs/output you wish to use and verify that it works.
+Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
 In the file /etc/rc.local, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a '&' to let startm.sh run as a background process, otherwise your system will hang on boot.
 
 Example (midicloro and startm.sh are downloaded to /home/pi):
@@ -65,7 +93,6 @@ MIDIcloro will now start when booting up, without the need of logging in (this m
 If the program does not start automatically on boot, try to run it as:
 sudo ./midicloro
 If you get errors regarding missing libraries, make sure that the libasound2-dev and libboost 1.55.0 libraries exist in /usr/lib/.
-The startm.sh script will print debug information to a file named startm.log placed in the directory you used as parameter to startm.sh. See startm.log for help solving the problem.
 
 
 SETTINGS
@@ -82,15 +109,18 @@ initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
 tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps slower than this)
 tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps faster than this)
 bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
+velocityRandomOffset = -40
+velocityMultiDeviceCtrl = true
 tempoMidiCC = 10 (MIDI CC number for setting the tempo)
 chordMidiCC = 11 (MIDI CC number for setting the chord mode)
 routeMidiCC = 12 (MIDI CC number for setting the channel routing)
+velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
 
 
 BUILD AND COMPILE
 Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed.
 
-Compile MIDIcloro:
+Compile MIDIcloro with the make command or:
 g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex
 
 
