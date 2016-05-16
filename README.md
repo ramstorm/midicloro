@@ -68,7 +68,7 @@ Install dependencies:
 
 Download the latest binary and make it executable:
 
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/midicloro`
+wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro
 
 `chmod +x midicloro`
 
@@ -85,7 +85,7 @@ Run MIDIcloro with the current settings:
 Automatically start MIDIcloro on boot:
 Download the latest version of the auto-start script startm.sh and make it executable.
 
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/startm.sh`
+wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh
 
 `chmod +x startm.sh`
 
