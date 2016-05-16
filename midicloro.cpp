@@ -59,8 +59,8 @@ enum Chord {
 };
 
 enum Velo {
-  VEL_ON,
   VEL_OFF,
+  VEL_ON,
   VEL_RDM
 };
 
