@@ -57,14 +57,20 @@ The velocity setting is mirrored to all other input devices with a number higher
 
 ## Installation
 Install dependencies:
-1. `sudo apt-get install libasound2-dev`
-2. `sudo apt-get install libboost-system-dev`
-3. `sudo apt-get install libboost-program-options-dev`
-4. `sudo apt-get install libboost-regex-dev`
+
+`sudo apt-get install libasound2-dev`
+
+`sudo apt-get install libboost-system-dev`
+
+`sudo apt-get install libboost-program-options-dev`
+
+`sudo apt-get install libboost-regex-dev`
 
 Download the latest binary and make it executable:
-1. `wget https://github.com/ledfyr/midicloro/releases/download/v1.3/midicloro`
-2. `chmod +x midicloro`
+
+`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/midicloro`
+
+`chmod +x midicloro`
 
 Connect your devices and start the interactive configuration:
 
@@ -78,8 +84,10 @@ Run MIDIcloro with the current settings:
 
 Automatically start MIDIcloro on boot:
 Download the latest version of the auto-start script startm.sh and make it executable.
-1. `wget https://github.com/ledfyr/midicloro/releases/download/v1.3/startm.sh`
-2. `chmod +x startm.sh`
+
+`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/startm.sh`
+
+`chmod +x startm.sh`
 
 Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
 In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `'&'` to let startm.sh run as a background process, otherwise your system will hang on boot.
@@ -104,23 +112,39 @@ If you get errors regarding missing libraries, make sure that the `libasound2-de
 ## Settings
 The settings are stored in midicloro.cfg. The interactive configuration (see above) is recommended the first time you run MIDIcloro since it detects all connected MIDI devices. The configuration file midicloro.cfg can also be edited manually (a restart of MIDIcloro is needed for the changes to take effect). All parameters are displayed below with default values (and explanations) where applicable:
 
-`input1 =
+input1 =
+
 input2 =
+
 input3 =
+
 input4 =
+
 output =
+
 enableClock = true (enable or disable clock)
+
 ignoreProgramChanges = true (ignore or allow incoming program change MIDI messages)
+
 initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
+
 tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps slower than this)
+
 tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps faster than this)
+
 bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
+
 velocityRandomOffset = -40
+
 velocityMultiDeviceCtrl = true
+
 tempoMidiCC = 10 (MIDI CC number for setting the tempo)
+
 chordMidiCC = 11 (MIDI CC number for setting the chord mode)
+
 routeMidiCC = 12 (MIDI CC number for setting the channel routing)
-velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)`
+
+velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
 
 
 ## Build and compile
@@ -142,18 +166,25 @@ The default CC numbers are 7 (X3\_) for velocity mode, 10 (X4\_) for clock tempo
 
 Examples (using default values):
 
-`X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
+X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
+
 X4A - If sent every beat: sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
 
 X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
+
 X52 - Same as above but generating a major chord.
+
 X53 - Same as above but generating a minor-low chord.
+
 X54 - Same as above but generating a major-low chord.
+
 X50 - Disables the chord mode.
 
 X60 - Route MIDI data sent on the current channel to MIDI channel 1.
+
 X64 - Route MIDI data sent on the current channel to MIDI channel 5.
-X6F - Route MIDI data sent on the current channel to MIDI channel 16.`
+
+X6F - Route MIDI data sent on the current channel to MIDI channel 16.
 
 
 ## Supported USB MIDI devices
@@ -161,10 +192,13 @@ Devices stated to be class compliant or known to be working in Linux will probab
 Please contact me if you find a working/non-working device not listed here and I will update the list.
 
 Known working devices:
+
 IK Multimedia iRig Keys
+
 E-MU XMidi 1X1
 
 Known problematic devices (not working out-of-the-box):
+
 M-Audio Midisport Uno
 
 
