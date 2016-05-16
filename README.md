@@ -26,22 +26,22 @@ There are two ways of setting the clock tempo. It can be set directly using the 
 
 ## Chord mode
 Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord. Chord mode is set via the chord mode MIDI CC. The CC value range 0-127 is divided into intervals of 8 to set the following modes:
-OFF
-MINOR3
-MAJOR3
-MINOR3_LO
-MAJOR3_LO
-MINOR2
-MAJOR2
-M7
-MAJ7
-M9
-MAJ9
-SUS4
-POWER2
-POWER3
-OCTAVE2
-OCTAVE3
+* OFF
+* MINOR3
+* MAJOR3
+* MINOR3_LO
+* MAJOR3_LO
+* MINOR2
+* MAJOR2
+* M7
+* MAJ7
+* M9
+* MAJ9
+* SUS4
+* POWER2
+* POWER3
+* OCTAVE2
+* OCTAVE3
 
 
 ## Channel routing
@@ -57,46 +57,54 @@ The velocity setting is mirrored to all other input devices with a number higher
 
 ## Installation
 Install dependencies:
-`sudo apt-get install libasound2-dev`
-`sudo apt-get install libboost-system-dev`
-`sudo apt-get install libboost-program-options-dev`
-`sudo apt-get install libboost-regex-dev`
+1. `sudo apt-get install libasound2-dev`
+2. `sudo apt-get install libboost-system-dev`
+3. `sudo apt-get install libboost-program-options-dev`
+4. `sudo apt-get install libboost-regex-dev`
 
 Download the latest binary and make it executable:
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/midicloro`
-`chmod +x midicloro`
+1. `wget https://github.com/ledfyr/midicloro/releases/download/v1.3/midicloro`
+2. `chmod +x midicloro`
 
 Connect your devices and start the interactive configuration:
+
 `./midicloro -c`
+
 Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed below. When the configuration is completed, MIDIcloro will start.
 
 Run MIDIcloro with the current settings:
+
 `./midicloro`
 
 Automatically start MIDIcloro on boot:
 Download the latest version of the auto-start script startm.sh and make it executable.
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.3/startm.sh`
-`chmod +x startm.sh`
+1. `wget https://github.com/ledfyr/midicloro/releases/download/v1.3/startm.sh`
+2. `chmod +x startm.sh`
 
 Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
 In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `'&'` to let startm.sh run as a background process, otherwise your system will hang on boot.
 
 Example (midicloro and startm.sh are downloaded to /home/pi):
+
 `sudo nano /etc/rc.local`
+
 Add the following line above `exit 0` in the bottom of the file. Do not forget the `'&'`.
+
 `/home/pi/startm.sh /home/pi &`
 
 MIDIcloro will now start when booting up, without the need of logging in (this makes it possible to run MIDIcloro on a headless Raspberry Pi).
 
 If the program does not start automatically on boot, try to run it as:
+
 `sudo ./midicloro`
+
 If you get errors regarding missing libraries, make sure that the `libasound2-dev` and `libboost` libraries exist in `/usr/lib/`.
 
 
 ## Settings
 The settings are stored in midicloro.cfg. The interactive configuration (see above) is recommended the first time you run MIDIcloro since it detects all connected MIDI devices. The configuration file midicloro.cfg can also be edited manually (a restart of MIDIcloro is needed for the changes to take effect). All parameters are displayed below with default values (and explanations) where applicable:
 
-input1 =
+`input1 =
 input2 =
 input3 =
 input4 =
@@ -112,13 +120,14 @@ velocityMultiDeviceCtrl = true
 tempoMidiCC = 10 (MIDI CC number for setting the tempo)
 chordMidiCC = 11 (MIDI CC number for setting the chord mode)
 routeMidiCC = 12 (MIDI CC number for setting the channel routing)
-velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
+velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)`
 
 
 ## Build and compile
 Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed.
 
 Compile MIDIcloro with `make` or the following command:
+
 `g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex`
 
 
@@ -133,7 +142,7 @@ The default CC numbers are 7 (X3\_) for velocity mode, 10 (X4\_) for clock tempo
 
 Examples (using default values):
 
-X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
+`X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
 X4A - If sent every beat: sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
 
 X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
@@ -144,7 +153,7 @@ X50 - Disables the chord mode.
 
 X60 - Route MIDI data sent on the current channel to MIDI channel 1.
 X64 - Route MIDI data sent on the current channel to MIDI channel 5.
-X6F - Route MIDI data sent on the current channel to MIDI channel 16.
+X6F - Route MIDI data sent on the current channel to MIDI channel 16.`
 
 
 ## Supported USB MIDI devices
