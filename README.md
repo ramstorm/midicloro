@@ -203,7 +203,7 @@ M-Audio Midisport Uno
 
 
 ## Other info
-MIDIcloro is built and tested on a Raspberry Pi Model B+ running Raspbian Wheezy. It may work without modifications on other Linux/Unix systems with ALSA support. MIDIcloro can also probably be built from source for Mac OS X and Windows without too much effort (since Boost and RtMidi are cross-platform software).
+MIDIcloro is built and tested on a Raspberry Pi Model B+ running Raspbian Jessie. It may work without modifications on other Linux/Unix systems with ALSA support. MIDIcloro can also probably be built from source for Mac OS X and Windows without too much effort.
 
 MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks go to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
 
