@@ -84,6 +84,8 @@ bool velocityMultiDeviceCtrl;
 boost::mt19937 *randomGenerator;
 boost::asio::deadline_timer *clockTimer = 0;
 vector<unsigned char> *clockMessage;
+vector<unsigned char> *noteOffMessage;
+unsigned char lastNote[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 int channelRouting[4][16] = {{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
                              {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
                              {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
@@ -199,9 +201,16 @@ int main(int argc, char *argv[]) {
     midiin3->ignoreTypes(false, false, false);
     midiin4->ignoreTypes(false, false, false);
 
+    // Note off message
+    vector<unsigned char> offMsg;
+    offMsg.push_back(BOOST_BINARY(10000000));
+    offMsg.push_back(42);
+    offMsg.push_back(100);
+    noteOffMessage = &offMsg;
+
     // Clock message
-    static const unsigned char cArr[] = {BOOST_BINARY(11111000)};
-    vector<unsigned char> clkMsg(cArr, cArr + sizeof(cArr) / sizeof(cArr[0]));
+    vector<unsigned char> clkMsg;
+    clkMsg.push_back(BOOST_BINARY(11111000));
     clockMessage = &clkMsg;
 
     // Tap-tempo
@@ -470,8 +479,21 @@ long tapTempo() {
 }
 
 void handleMessage(vector<unsigned char> *message, int source) {
+  // Note at source 3: send note off for last note before sending note on
+  if (source == 3 && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
+    routeChannel(message, source);
+    applyVelocity(message, source);
+    int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
+    if (lastNote[channel] > 0) {
+      (*noteOffMessage)[0] = 128 + channel;
+      (*noteOffMessage)[1] = lastNote[channel];
+      sendNoteOrChord(noteOffMessage, source);
+    }
+    sendNoteOrChord(message, source);
+    lastNote[channel] = (*message)[1];
+  }
   // Note on/off: send note or chord
-  if (((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
+  else if (((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
     routeChannel(message, source);
     applyVelocity(message, source);
     sendNoteOrChord(message, source);
