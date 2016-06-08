@@ -40,7 +40,7 @@ namespace convert {
 }
 
 enum Chord {
-  CHORD_OFF,
+  CHORD_OFF = 0,
   MINOR3,
   MAJOR3,
   MINOR3_LO,
@@ -85,7 +85,10 @@ boost::mt19937 *randomGenerator;
 boost::asio::deadline_timer *clockTimer = 0;
 vector<unsigned char> *clockMessage;
 vector<unsigned char> *noteOffMessage;
-unsigned char lastNote[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int lastNote[4][16] = {{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+                       {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+                       {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
+                       {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1}};
 int channelRouting[4][16] = {{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
                              {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
                              {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
@@ -102,6 +105,7 @@ int velocity[4][16] = {{100,100,100,100,100,100,100,100,100,100,100,100,100,100,
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100}};
+bool killNotesAtInput[4] = {false, false, false, false};
 boost::circular_buffer<boost::posix_time::ptime> *tapTempoTimes;
 const char *CONFIG_FILE = "midicloro.cfg";
 
@@ -115,6 +119,8 @@ void routeChannel(vector<unsigned char> *message, int source);
 void setChannelRouting(int source, int channel, int newChannel);
 void applyVelocity(vector<unsigned char> *message, int source);
 void setVelocityMode(int source, int channel, int value);
+void setVelocityModeMulti(int source, int channel, int value);
+int scaleUp(int value);
 long tapTempo();
 void handleMessage(vector<unsigned char> *message, int source);
 void messageAtIn1(double deltatime, vector<unsigned char> *message, void */*userData*/);
@@ -138,19 +144,20 @@ int main(int argc, char *argv[]) {
       usage();
 
     // Handle configuration
-    string input1;
-    string input2;
-    string input3;
-    string input4;
-    string output;
+    string input1, input2, input3, input4, output;
+    bool input1killNotes, input2killNotes, input3killNotes, input4killNotes;
     int initialBpm, tapTempoMinBpm, tapTempoMaxBpm;
 
     po::options_description desc("Options");
     desc.add_options()
       ("input1", po::value<string>(&input1), "input1")
+      ("input1killNotes", po::value<bool>(&input1killNotes)->default_value(false), "input1killNotes")
       ("input2", po::value<string>(&input2), "input2")
+      ("input2killNotes", po::value<bool>(&input2killNotes)->default_value(false), "input2killNotes")
       ("input3", po::value<string>(&input3), "input3")
+      ("input3killNotes", po::value<bool>(&input3killNotes)->default_value(false), "input3killNotes")
       ("input4", po::value<string>(&input4), "input4")
+      ("input4killNotes", po::value<bool>(&input4killNotes)->default_value(false), "input4killNotes")
       ("output", po::value<string>(&output), "output")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
       ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(true), "ignoreProgramChanges")
@@ -174,6 +181,11 @@ int main(int argc, char *argv[]) {
     clockInterval = 60000000000/(initialBpm*24);
     tapTempoMaxInterval = 60000000000/tapTempoMinBpm;
     tapTempoMinInterval = 60000000000/tapTempoMaxBpm;
+
+    killNotesAtInput[0] = input1killNotes;
+    killNotesAtInput[1] = input2killNotes;
+    killNotesAtInput[2] = input3killNotes;
+    killNotesAtInput[3] = input4killNotes;
 
     randomGenerator = new boost::mt19937(time(0));
 
@@ -368,23 +380,7 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
 }
 
 void setChordMode(int source, int channel, int value) {
-  if (value >= 0 && value < 8) chordModes[source][channel] = CHORD_OFF;
-  else if (value >= 8 && value < 16) chordModes[source][channel] = MINOR3;
-  else if (value >= 16 && value < 24) chordModes[source][channel] = MAJOR3;
-  else if (value >= 24 && value < 32) chordModes[source][channel] = MINOR3_LO;
-  else if (value >= 32 && value < 40) chordModes[source][channel] = MAJOR3_LO;
-  else if (value >= 40 && value < 48) chordModes[source][channel] = MINOR2;
-  else if (value >= 48 && value < 56) chordModes[source][channel] = MAJOR2;
-  else if (value >= 56 && value < 64) chordModes[source][channel] = M7;
-  else if (value >= 64 && value < 72) chordModes[source][channel] = MAJ7;
-  else if (value >= 72 && value < 80) chordModes[source][channel] = M9;
-  else if (value >= 80 && value < 88) chordModes[source][channel] = MAJ9;
-  else if (value >= 88 && value < 96) chordModes[source][channel] = SUS4;
-  else if (value >= 96 && value < 104) chordModes[source][channel] = POWER2;
-  else if (value >= 104 && value < 112) chordModes[source][channel] = POWER3;
-  else if (value >= 112 && value < 120) chordModes[source][channel] = OCTAVE2;
-  else if (value >= 120 && value < 128) chordModes[source][channel] = OCTAVE3;
-  else chordModes[source][channel] = CHORD_OFF;
+  chordModes[source][channel] = value/8;
 }
 
 void routeChannel(vector<unsigned char> *message, int source) {
@@ -417,47 +413,50 @@ void applyVelocity(vector<unsigned char> *message, int source) {
 
 void setVelocityMode(int source, int channel, int value) {
   if (value == 127) {
-    if (velocityMultiDeviceCtrl) {
-      int newMode = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
-      for (int i=source; i<4; i++)
-        velocityModes[i][channel] = newMode;
-    }
-    else {
-      velocityModes[source][channel] = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
-    }
+    velocityModes[source][channel] = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
   }
   else if (value == 0) {
-    if (velocityMultiDeviceCtrl) {
-      for (int i=source; i<4; i++)
-        velocityModes[i][channel] = VEL_OFF;
-    }
-    else {
-      velocityModes[source][channel] = VEL_OFF;
-    }
+    velocityModes[source][channel] = VEL_OFF;
   }
   else {
-    // Scale value to the full range 0-127
-    if (value > 64) {
-      value += 8*(value - 64)/56;
-      value = min(value, 127);
-    }
-    else if (value < 64) {
-      value -= 8*(64 - value)/56;
-      value = max(value, 0);
-    }
-    if (velocityMultiDeviceCtrl) {
-      for (int i=source; i<4; i++)
-        velocity[i][channel] = value;
-      if (velocityModes[source][channel] == VEL_OFF)
-        for (int i=source; i<4; i++)
-          velocityModes[i][channel] = VEL_ON;
-    }
-    else {
-      velocity[source][channel] = value;
-      if (velocityModes[source][channel] == VEL_OFF)
-        velocityModes[source][channel] = VEL_ON;
-    }
+    value = scaleUp(value);
+    velocity[source][channel] = value;
+    if (velocityModes[source][channel] == VEL_OFF)
+      velocityModes[source][channel] = VEL_ON;
   }
+}
+
+void setVelocityModeMulti(int source, int channel, int value) {
+  if (value == 127) {
+    int newMode = (velocityModes[source][channel] == VEL_RDM) ? VEL_ON : VEL_RDM;
+    for (int i=source; i>=0; i--)
+      velocityModes[i][channel] = newMode;
+  }
+  else if (value == 0) {
+    for (int i=source; i>=0; i--)
+      velocityModes[i][channel] = VEL_OFF;
+  }
+  else {
+    value = scaleUp(value);
+    for (int i=source; i>=0; i--)
+      velocity[i][channel] = value;
+    if (velocityModes[source][channel] == VEL_OFF)
+      for (int i=source; i>=0; i--)
+        velocityModes[i][channel] = VEL_ON;
+  }
+}
+
+int scaleUp(int value) {
+  // Scale value to let 8-120 contain the whole range 0-127
+  if (value > 64) {
+    value += 8*(value - 64)/56;
+    value = min(value, 127);
+  }
+  else if (value < 64) {
+    value -= 8*(64 - value)/56;
+    value = max(value, 0);
+  }
+  return value;
 }
 
 long tapTempo() {
@@ -479,18 +478,23 @@ long tapTempo() {
 }
 
 void handleMessage(vector<unsigned char> *message, int source) {
-  // Note at source 3: send note off for last note before sending note on
-  if (source == 3 && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
+  // Kill notes if enabled: send note off for last note before sending note on
+  if (killNotesAtInput[source] && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
+    bool isNoteOn = ((*message)[0] & BOOST_BINARY(10010000)) == BOOST_BINARY(10010000);
     routeChannel(message, source);
     applyVelocity(message, source);
     int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
-    if (lastNote[channel] > 0) {
+    if (isNoteOn && lastNote[source][channel] != 255) {
       (*noteOffMessage)[0] = 128 + channel;
-      (*noteOffMessage)[1] = lastNote[channel];
+      (*noteOffMessage)[1] = lastNote[source][channel];
       sendNoteOrChord(noteOffMessage, source);
     }
+    if (isNoteOn)
+      lastNote[source][channel] = (*message)[1];
+    else
+      lastNote[source][channel] = 255;
+
     sendNoteOrChord(message, source);
-    lastNote[channel] = (*message)[1];
   }
   // Note on/off: send note or chord
   else if (((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
@@ -504,8 +508,7 @@ void handleMessage(vector<unsigned char> *message, int source) {
     clockTimer->cancel();
   }
   // Tap-tempo MIDI CC: use tap-tempo or tempo from MIDI message
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
-            (*message)[1] == tempoMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == tempoMidiCC) {
     long tapInterval = tapTempo();
     if (tapInterval != 0)
       clockInterval = tapInterval/24;
@@ -515,21 +518,21 @@ void handleMessage(vector<unsigned char> *message, int source) {
     clockTimer->cancel();
   }
   // Chord mode MIDI CC: set chord mode
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
-            (*message)[1] == chordMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == chordMidiCC) {
     routeChannel(message, source);
     setChordMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
   // Channel routing MIDI CC: set channel routing
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
-            (*message)[1] == routeMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == routeMidiCC) {
     setChannelRouting(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
   // Velocity MIDI CC: set velocity mode
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 &&
-            (*message)[1] == velocityMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == velocityMidiCC) {
     routeChannel(message, source);
-    setVelocityMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
+    if (velocityMultiDeviceCtrl)
+      setVelocityModeMulti(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
+    else
+      setVelocityMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
   // Other MIDI messages
   else if (!ignoreMessage((*message)[0])) {
@@ -678,12 +681,17 @@ void runInteractiveConfiguration() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-    cout << "Store hardware id? (y/N): ";
+    cout << "Store hardware id for input " << i+1 << "? (y/N): ";
     getline(cin, keyHit);
     if (keyHit == "y")
       cfg += string("input") + convert::to_string(i+1) + string(" = ") + inputs[userIn] + "\n";
     else
       cfg += string("input") + convert::to_string(i+1) + string(" = ") + trimPort(true, inputs[userIn]) + "\n";
+
+    cout << "Kill notes for input " << i+1 << "? Only needed for devices incapable of sending note off messages. (y/N): ";
+    getline(cin, keyHit);
+    if (keyHit == "y")
+      cfg += string("input") + convert::to_string(i+1) + string("killNotes = true") + "\n";
 
     addedIns++;
     inputs[userIn] = "";

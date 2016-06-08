@@ -3,10 +3,10 @@ By David Ramström
 
 ## Introduction
 MIDIcloro does the following:
-* Listens to MIDI data from up to 4 USB input devices (sequencers, keyboards, controllers) and merges it into 1 output.
+* Listens to MIDI data from up to 4 USB input devices (e.g. sequencers, keyboards, interfaces) and merges it into 1 output.
 * Adds MIDI clock, polyphonic chords, velocity and routing of channels to the MIDI data sent to the output.
 * Settings can be controlled in real-time via MIDI CC sent from the input devices.
-* Runs stand-alone on the Raspberry Pi, without the need of a mouse, keyboard or monitor. Start-up script included.
+* Runs stand-alone on the Raspberry Pi. No need for a mouse, keyboard or monitor. Auto start script is included.
 * Plain old MIDI connectors (5-pin DIN) are supported by using a USB MIDI interface.
 
 
@@ -19,9 +19,9 @@ Clock only - Use MIDIcloro as a master clock. You can connect a MIDI controller 
 
 
 ## MIDI clock
-MIDI clock messages are sent immediately after starting MIDIcloro. An incoming start message resets the clock and the start message is forwarded to the output. Stop messages are also forwarded to the output. Clock signals are sent even after a stop message is received, so that connected equipment relying on MIDI clock can still be played using a keyboard. Any incoming clock messages are filtered out. If MIDI clock is disabled, no clock messages are generated and all incoming start, stop and clock messages are forwarded to the output.
+MIDI clock messages are sent immediately after starting MIDIcloro. An incoming start message resets the clock and the start message is forwarded to the output. Stop messages are also forwarded to the output. Clock signals are sent even after a stop message is received, so that connected equipment relying on MIDI clock is kept in sync. Any incoming clock messages are filtered out. If MIDI clock is disabled, no clock messages are generated and all incoming start, stop and clock messages are forwarded to the output.
 
-There are two ways of setting the clock tempo. It can be set directly using the configured tempo MIDI CC message: new tempo = configured offset + MIDI CC value (0-127). The tempo can also be set by tapping the tempo MIDI CC message every beat. The first tap will set the tempo directly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
+There are two ways of setting the clock tempo. It can be set directly using the configured tempo MIDI CC message: new tempo = configured offset + MIDI CC value (0-127). The tempo can also be set by tapping the tempo MIDI CC message every beat. The first tap will set the tempo instantly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
 
 
 ## Chord mode
@@ -52,7 +52,7 @@ Each device and MIDI channel also has its own routing setting. By changing the c
 Each device and MIDI channel has a velocity setting set via MIDI CC as follows: CC value=0 => OFF (velocity from the input device is unchanged), CC value=1-126 (all notes get velocity=value), CC value=127 (toggles random velocity mode on/off).
 Random velocity mode: all notes get a random velocity between the latest CC value and a configurable offset.
 Velocity is scaled to squeeze the whole 0-127 range in between CC value 8-120.
-The velocity setting is mirrored to all other input devices with a number higher than the current device. The mirroring can be turned off in the settings.
+The velocity setting is mirrored to all other input devices with a number lower than the current device. The mirroring can be turned off in the settings.
 
 
 ## Installation
@@ -68,7 +68,7 @@ Install dependencies:
 
 Download the latest binary and make it executable:
 
-wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro
+`wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro`
 
 `chmod +x midicloro`
 
@@ -85,18 +85,18 @@ Run MIDIcloro with the current settings:
 Automatically start MIDIcloro on boot:
 Download the latest version of the auto-start script startm.sh and make it executable.
 
-wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh
+`wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh`
 
 `chmod +x startm.sh`
 
 Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
-In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `'&'` to let startm.sh run as a background process, otherwise your system will hang on boot.
+In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `&` to let startm.sh run as a background process, otherwise your system will hang on boot.
 
 Example (midicloro and startm.sh are downloaded to /home/pi):
 
 `sudo nano /etc/rc.local`
 
-Add the following line above `exit 0` in the bottom of the file. Do not forget the `'&'`.
+Add the following line above `exit 0` in the bottom of the file. Do not forget the `&`.
 
 `/home/pi/startm.sh /home/pi &`
 
@@ -188,7 +188,7 @@ X6F - Route MIDI data sent on the current channel to MIDI channel 16.
 
 
 ## Supported USB MIDI devices
-Devices stated to be class compliant or known to be working in Linux will probably work with MIDIcloro on a Raspberry Pi.
+Devices stated to be class compliant or known to be working in Linux will probably work.
 Please contact me if you find a working/non-working device not listed here and I will update the list.
 
 Known working devices:
@@ -210,6 +210,7 @@ MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks go to the au
 
 ## Contact
 Ledfyr at chipmusic.org
+
 david.ramstrom (at) gmail \_dot\_ com
 
 
