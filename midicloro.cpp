@@ -105,11 +105,11 @@ int velocity[4][16] = {{100,100,100,100,100,100,100,100,100,100,100,100,100,100,
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100}};
-bool noteOffMode[4] = {false, false, false, false};
-bool noteOffLegato[4][16] = {{false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
-                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
-                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
-                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false}};
+bool mono[4] = {false,false,false,false};
+bool monoLegato[4][16] = {{false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                          {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                          {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                          {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false}};
 boost::circular_buffer<boost::posix_time::ptime> *tapTempoTimes;
 const char *CONFIG_FILE = "midicloro.cfg";
 
@@ -150,19 +150,19 @@ int main(int argc, char *argv[]) {
 
     // Handle configuration
     string input1, input2, input3, input4, output;
-    bool input1noteOffMode, input2noteOffMode, input3noteOffMode, input4noteOffMode;
+    bool input1mono, input2mono, input3mono, input4mono;
     int initialBpm, tapTempoMinBpm, tapTempoMaxBpm;
 
     po::options_description desc("Options");
     desc.add_options()
       ("input1", po::value<string>(&input1), "input1")
-      ("input1noteOffMode", po::value<bool>(&input1noteOffMode)->default_value(false), "input1noteOffMode")
+      ("input1mono", po::value<bool>(&input1mono)->default_value(false), "input1mono")
       ("input2", po::value<string>(&input2), "input2")
-      ("input2noteOffMode", po::value<bool>(&input2noteOffMode)->default_value(false), "input2noteOffMode")
+      ("input2mono", po::value<bool>(&input2mono)->default_value(false), "input2mono")
       ("input3", po::value<string>(&input3), "input3")
-      ("input3noteOffMode", po::value<bool>(&input3noteOffMode)->default_value(false), "input3noteOffMode")
+      ("input3mono", po::value<bool>(&input3mono)->default_value(false), "input3mono")
       ("input4", po::value<string>(&input4), "input4")
-      ("input4noteOffMode", po::value<bool>(&input4noteOffMode)->default_value(false), "input4noteOffMode")
+      ("input4mono", po::value<bool>(&input4mono)->default_value(false), "input4mono")
       ("output", po::value<string>(&output), "output")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
       ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(true), "ignoreProgramChanges")
@@ -187,10 +187,10 @@ int main(int argc, char *argv[]) {
     tapTempoMaxInterval = 60000000000/tapTempoMinBpm;
     tapTempoMinInterval = 60000000000/tapTempoMaxBpm;
 
-    noteOffMode[0] = input1noteOffMode;
-    noteOffMode[1] = input2noteOffMode;
-    noteOffMode[2] = input3noteOffMode;
-    noteOffMode[3] = input4noteOffMode;
+    mono[0] = input1mono;
+    mono[1] = input2mono;
+    mono[2] = input3mono;
+    mono[3] = input4mono;
 
     randomGenerator = new boost::mt19937(time(0));
 
@@ -387,7 +387,7 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
 void sendNoteOffAndNote(vector<unsigned char> *message, int source) {
   int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
   bool thisIsNoteOn = ((*message)[0] & BOOST_BINARY(10010000)) == BOOST_BINARY(10010000);
-  if (!noteOffLegato[source][channel]) {
+  if (!monoLegato[source][channel]) {
     if (thisIsNoteOn && lastNote[source][channel] != -1) {
       (*noteOffMessage)[0] = 128 + channel;
       (*noteOffMessage)[1] = lastNote[source][channel];
@@ -411,7 +411,7 @@ void sendNoteOffAndNote(vector<unsigned char> *message, int source) {
 
 void setChordMode(int source, int channel, int value) {
   if (chordModes[source][channel] == 0 && value == 0)
-    noteOffLegato[source][channel] = !noteOffLegato[source][channel];
+    monoLegato[source][channel] = !monoLegato[source][channel];
 
   chordModes[source][channel] = value/8;
 }
@@ -511,8 +511,8 @@ long tapTempo() {
 }
 
 void handleMessage(vector<unsigned char> *message, int source) {
-  // Note-off mode: send note off for last note
-  if (noteOffMode[source] && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
+  // Handle mono mode
+  if (mono[source] && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
     routeChannel(message, source);
     applyVelocity(message, source);
     sendNoteOffAndNote(message, source);
@@ -672,10 +672,9 @@ void runInteractiveConfiguration() {
   int addedIns = 0;
   cout << endl <<
     "Note about hardware id (HWid, example: 11:0). "
-    "The HWid for a device might change if you connect it to another USB port."
+    "The HWid for a port might change if you connect it to another USB port."
     << endl <<
-    "Recommendation: Do not store HWid for single devices. "
-    "Store HWid for devices sharing the same name."
+    "Never store HWid except for ports which have the same name (storing HWid is required in that case)."
     << endl << endl;
   // Input
   int nPorts = cfgMidiIn->getPortCount();
@@ -709,10 +708,10 @@ void runInteractiveConfiguration() {
     else
       cfg += string("input") + convert::to_string(i+1) + string(" = ") + trimPort(true, inputs[userIn]) + "\n";
 
-    cout << "Activate note-off mode for input " << i+1 << "? (y/N): ";
+    cout << "Enable mono mode for input " << i+1 << "? (y/N): ";
     getline(cin, keyHit);
     if (keyHit == "y")
-      cfg += string("input") + convert::to_string(i+1) + string("noteOffMode = true") + "\n";
+      cfg += string("input") + convert::to_string(i+1) + string("mono = true") + "\n";
 
     addedIns++;
     inputs[userIn] = "";
