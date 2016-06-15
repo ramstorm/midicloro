@@ -105,7 +105,11 @@ int velocity[4][16] = {{100,100,100,100,100,100,100,100,100,100,100,100,100,100,
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100},
                        {100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100}};
-bool killNotesAtInput[4] = {false, false, false, false};
+bool noteOffMode[4] = {false, false, false, false};
+bool noteOffLegato[4][16] = {{false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+                             {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false}};
 boost::circular_buffer<boost::posix_time::ptime> *tapTempoTimes;
 const char *CONFIG_FILE = "midicloro.cfg";
 
@@ -114,6 +118,7 @@ double random01();
 bool ignoreMessage(unsigned char msgByte);
 void transposeAndSend(vector<unsigned char> *message, int semiNotes);
 void sendNoteOrChord(vector<unsigned char> *message, int source);
+void sendNoteOffAndNote(vector<unsigned char> *message, int source);
 void setChordMode(int source, int channel, int value);
 void routeChannel(vector<unsigned char> *message, int source);
 void setChannelRouting(int source, int channel, int newChannel);
@@ -145,19 +150,19 @@ int main(int argc, char *argv[]) {
 
     // Handle configuration
     string input1, input2, input3, input4, output;
-    bool input1killNotes, input2killNotes, input3killNotes, input4killNotes;
+    bool input1noteOffMode, input2noteOffMode, input3noteOffMode, input4noteOffMode;
     int initialBpm, tapTempoMinBpm, tapTempoMaxBpm;
 
     po::options_description desc("Options");
     desc.add_options()
       ("input1", po::value<string>(&input1), "input1")
-      ("input1killNotes", po::value<bool>(&input1killNotes)->default_value(false), "input1killNotes")
+      ("input1noteOffMode", po::value<bool>(&input1noteOffMode)->default_value(false), "input1noteOffMode")
       ("input2", po::value<string>(&input2), "input2")
-      ("input2killNotes", po::value<bool>(&input2killNotes)->default_value(false), "input2killNotes")
+      ("input2noteOffMode", po::value<bool>(&input2noteOffMode)->default_value(false), "input2noteOffMode")
       ("input3", po::value<string>(&input3), "input3")
-      ("input3killNotes", po::value<bool>(&input3killNotes)->default_value(false), "input3killNotes")
+      ("input3noteOffMode", po::value<bool>(&input3noteOffMode)->default_value(false), "input3noteOffMode")
       ("input4", po::value<string>(&input4), "input4")
-      ("input4killNotes", po::value<bool>(&input4killNotes)->default_value(false), "input4killNotes")
+      ("input4noteOffMode", po::value<bool>(&input4noteOffMode)->default_value(false), "input4noteOffMode")
       ("output", po::value<string>(&output), "output")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
       ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(true), "ignoreProgramChanges")
@@ -182,10 +187,10 @@ int main(int argc, char *argv[]) {
     tapTempoMaxInterval = 60000000000/tapTempoMinBpm;
     tapTempoMinInterval = 60000000000/tapTempoMaxBpm;
 
-    killNotesAtInput[0] = input1killNotes;
-    killNotesAtInput[1] = input2killNotes;
-    killNotesAtInput[2] = input3killNotes;
-    killNotesAtInput[3] = input4killNotes;
+    noteOffMode[0] = input1noteOffMode;
+    noteOffMode[1] = input2noteOffMode;
+    noteOffMode[2] = input3noteOffMode;
+    noteOffMode[3] = input4noteOffMode;
 
     randomGenerator = new boost::mt19937(time(0));
 
@@ -379,7 +384,35 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
   }
 }
 
+void sendNoteOffAndNote(vector<unsigned char> *message, int source) {
+  int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
+  bool thisIsNoteOn = ((*message)[0] & BOOST_BINARY(10010000)) == BOOST_BINARY(10010000);
+  if (!noteOffLegato[source][channel]) {
+    if (thisIsNoteOn && lastNote[source][channel] != -1) {
+      (*noteOffMessage)[0] = 128 + channel;
+      (*noteOffMessage)[1] = lastNote[source][channel];
+      sendNoteOrChord(noteOffMessage, source);
+    }
+    lastNote[source][channel] = thisIsNoteOn ? (*message)[1] : -1;
+    sendNoteOrChord(message, source);
+  }
+  else {
+    unsigned char currNote = (*message)[1];
+    sendNoteOrChord(message, source);
+    if (thisIsNoteOn && lastNote[source][channel] != -1) {
+      (*noteOffMessage)[0] = 128 + channel;
+      (*noteOffMessage)[1] = lastNote[source][channel];
+      sendNoteOrChord(noteOffMessage, source);
+    }
+    lastNote[source][channel] = thisIsNoteOn ? currNote : -1;
+  }
+}
+
+
 void setChordMode(int source, int channel, int value) {
+  if (chordModes[source][channel] == 0 && value == 0)
+    noteOffLegato[source][channel] = !noteOffLegato[source][channel];
+
   chordModes[source][channel] = value/8;
 }
 
@@ -478,23 +511,11 @@ long tapTempo() {
 }
 
 void handleMessage(vector<unsigned char> *message, int source) {
-  // Kill notes if enabled: send note off for last note before sending note on
-  if (killNotesAtInput[source] && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
-    bool isNoteOn = ((*message)[0] & BOOST_BINARY(10010000)) == BOOST_BINARY(10010000);
+  // Note-off mode: send note off for last note
+  if (noteOffMode[source] && ((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
     routeChannel(message, source);
     applyVelocity(message, source);
-    int channel = (int)((*message)[0] & BOOST_BINARY(00001111));
-    if (isNoteOn && lastNote[source][channel] != 255) {
-      (*noteOffMessage)[0] = 128 + channel;
-      (*noteOffMessage)[1] = lastNote[source][channel];
-      sendNoteOrChord(noteOffMessage, source);
-    }
-    if (isNoteOn)
-      lastNote[source][channel] = (*message)[1];
-    else
-      lastNote[source][channel] = 255;
-
-    sendNoteOrChord(message, source);
+    sendNoteOffAndNote(message, source);
   }
   // Note on/off: send note or chord
   else if (((*message)[0] & BOOST_BINARY(11100000)) == BOOST_BINARY(10000000)) {
@@ -688,10 +709,10 @@ void runInteractiveConfiguration() {
     else
       cfg += string("input") + convert::to_string(i+1) + string(" = ") + trimPort(true, inputs[userIn]) + "\n";
 
-    cout << "Kill notes for input " << i+1 << "? Only needed for devices incapable of sending note off messages. (y/N): ";
+    cout << "Activate note-off mode for input " << i+1 << "? (y/N): ";
     getline(cin, keyHit);
     if (keyHit == "y")
-      cfg += string("input") + convert::to_string(i+1) + string("killNotes = true") + "\n";
+      cfg += string("input") + convert::to_string(i+1) + string("noteOffMode = true") + "\n";
 
     addedIns++;
     inputs[userIn] = "";
