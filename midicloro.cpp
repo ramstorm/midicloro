@@ -13,14 +13,13 @@
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <ctime>
 #include <limits>
 #include <sstream>
 #include <string>
 #include <algorithm>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <map>
+#include <signal.h>
+#include <time.h>
 #include <boost/utility/binary.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/program_options.hpp>
@@ -69,7 +68,9 @@ RtMidiIn *midiin2 = 0;
 RtMidiIn *midiin3 = 0;
 RtMidiIn *midiin4 = 0;
 RtMidiOut *midiout = 0;
+bool done;
 bool enableClock;
+bool resetClock;
 bool ignoreProgramChanges;
 int tempoMidiCC;
 int chordMidiCC;
@@ -82,7 +83,6 @@ long tapTempoMaxInterval; // Tap-tempo max interval in ns
 int velocityRandomOffset;
 bool velocityMultiDeviceCtrl;
 boost::mt19937 *randomGenerator;
-boost::asio::deadline_timer *clockTimer = 0;
 vector<unsigned char> *clockMessage;
 vector<unsigned char> *noteOffMessage;
 int lastNote[4][16] = {{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
@@ -110,10 +110,11 @@ bool monoLegato[4][16] = {{false,false,false,false,false,false,false,false,false
                           {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
                           {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
                           {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false}};
-boost::circular_buffer<boost::posix_time::ptime> *tapTempoTimes;
+boost::circular_buffer<struct timespec> *tapTempoTimes;
 const char *CONFIG_FILE = "midicloro.cfg";
 
 void usage(void);
+static void finish( int /*ignore*/ ){ done = true; }
 double random01();
 bool ignoreMessage(unsigned char msgByte);
 void transposeAndSend(vector<unsigned char> *message, int semiNotes);
@@ -136,8 +137,6 @@ string trimPort(bool doTrim, const string& str);
 bool openInputPort(RtMidiIn *in, string port);
 bool openOutputPort(RtMidiIn *in, string port);
 bool openPorts(string i1, string i2, string i3, string i4, string o);
-void clock(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t);
-void signalHandler(const boost::system::error_code& error, int signal_number);
 void cleanUp();
 void runInteractiveConfiguration();
 
@@ -192,7 +191,9 @@ int main(int argc, char *argv[]) {
     mono[2] = input3mono;
     mono[3] = input4mono;
 
-    randomGenerator = new boost::mt19937(time(0));
+    struct timespec lastClock, now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    randomGenerator = new boost::mt19937(now.tv_nsec);
 
     midiin1 = new RtMidiIn();
     midiin2 = new RtMidiIn();
@@ -207,17 +208,6 @@ int main(int argc, char *argv[]) {
       exit(0);
     }
 
-    if (midiin1->isPortOpen()) midiin1->setCallback(&messageAtIn1);
-    if (midiin2->isPortOpen()) midiin2->setCallback(&messageAtIn2);
-    if (midiin3->isPortOpen()) midiin3->setCallback(&messageAtIn3);
-    if (midiin4->isPortOpen()) midiin4->setCallback(&messageAtIn4);
-
-    // Don't ignore sysex, timing, or active sensing messages
-    if (midiin1->isPortOpen()) midiin1->ignoreTypes(false, false, false);
-    if (midiin2->isPortOpen()) midiin2->ignoreTypes(false, false, false);
-    if (midiin3->isPortOpen()) midiin3->ignoreTypes(false, false, false);
-    if (midiin4->isPortOpen()) midiin4->ignoreTypes(false, false, false);
-
     // Note off message
     vector<unsigned char> offMsg;
     offMsg.push_back(BOOST_BINARY(10000000));
@@ -231,29 +221,38 @@ int main(int argc, char *argv[]) {
     clockMessage = &clkMsg;
 
     // Tap-tempo
-    boost::circular_buffer<boost::posix_time::ptime> taps(4);
-    taps.push_front(boost::posix_time::microsec_clock::local_time());
+    boost::circular_buffer<struct timespec> taps(4);
+    taps.push_front(now);
     tapTempoTimes = &taps;
 
+    map<int, RtMidiIn*> midiins;
+    if (midiin1->isPortOpen()) midiins[0] = midiin1;
+    if (midiin2->isPortOpen()) midiins[1] = midiin2;
+    if (midiin3->isPortOpen()) midiins[2] = midiin3;
+    if (midiin4->isPortOpen()) midiins[3] = midiin4;
+
+    done = false;
+    resetClock = false;
+    (void) signal(SIGINT, finish);
+    std::vector<unsigned char> incomingMsg;
+
     cout << "Starting" << endl;
-    if (enableClock) {
-      // Start recurring timer generating MIDI clock
-      cout << "Press ctrl+c to exit" << endl;
-      boost::asio::io_service io;
-      boost::asio::deadline_timer t(io, boost::posix_time::nanoseconds(clockInterval));
-      t.async_wait(boost::bind(clock, boost::asio::placeholders::error, &t));
-      clockTimer = &t; 
+    midiout->sendMessage(clockMessage);
+    clock_gettime(CLOCK_MONOTONIC, &lastClock);
 
-      // Register signals for process termination
-      boost::asio::signal_set signals(io, SIGINT, SIGTERM);
-      signals.async_wait(signalHandler);
-
-      io.run();
+    while (!done) {
+      for(map<int, RtMidiIn*>::iterator iter = midiins.begin(); iter != midiins.end(); ++iter) {
+        iter->second->getMessage(&incomingMsg);
+        if (incomingMsg.size() > 0) handleMessage(&incomingMsg, iter->first);
+      }
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      if(resetClock || ((now.tv_nsec-lastClock.tv_nsec)+((now.tv_sec-lastClock.tv_sec)*1000000000)) >= clockInterval) {
+        midiout->sendMessage(clockMessage);
+        clock_gettime(CLOCK_MONOTONIC, &lastClock);
+        resetClock = false;
+      }
     }
-
-    cout << "Press enter to exit" << endl;
-    char exitIn;
-    cin.get(exitIn);
+    cout << endl;
   }
   catch (RtMidiError &error) {
     error.printMessage();
@@ -496,10 +495,13 @@ long tapTempo() {
   long diff = 0;
   long accumulatedDiffs = 0;
   unsigned int i = 0;
-  tapTempoTimes->push_front(boost::posix_time::microsec_clock::local_time());
+  struct timespec now, curr, prev;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  tapTempoTimes->push_front(now);
   do {
-    boost::posix_time::time_duration td = (*tapTempoTimes)[i] - (*tapTempoTimes)[i+1];
-    diff = td.total_nanoseconds();
+    curr = (*tapTempoTimes)[i];
+    prev = (*tapTempoTimes)[i+1];
+    diff = (curr.tv_nsec - prev.tv_nsec) + (curr.tv_sec - prev.tv_sec) * 1000000000;
     accumulatedDiffs += diff;
     i++;
   }
@@ -526,7 +528,7 @@ void handleMessage(vector<unsigned char> *message, int source) {
   // Start message: pass it through and reset clock
   else if (enableClock && ((*message)[0] == BOOST_BINARY(11111010))) {
     midiout->sendMessage(message);
-    clockTimer->cancel();
+    resetClock = true;
   }
   // Tap-tempo MIDI CC: use tap-tempo or tempo from MIDI message
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == tempoMidiCC) {
@@ -536,7 +538,7 @@ void handleMessage(vector<unsigned char> *message, int source) {
     else
       clockInterval = 60000000000/((bpmOffsetForMidiCC+(*message)[2])*24);
 
-    clockTimer->cancel();
+    resetClock = true;
   }
   // Chord mode MIDI CC: set chord mode
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == chordMidiCC) {
@@ -600,6 +602,7 @@ bool openInputPort(RtMidiIn *in, string port) {
     if (trimPort(doTrim, portName) == port) {
       cout << "Opening input port: " << portName << endl;
       in->openPort(i);
+      in->ignoreTypes(false, false, false);
       return true;
     }
   }
@@ -630,20 +633,6 @@ bool openPorts(string i1, string i2, string i3, string i4, string o) {
   openInputPort(midiin3, i3);
   openInputPort(midiin4, i4);
   return openOutputPort(midiout, o);
-}
-
-void clock(const boost::system::error_code& /*e*/, boost::asio::deadline_timer* t) {
-  midiout->sendMessage(clockMessage);
-  t->expires_from_now(boost::posix_time::nanoseconds(clockInterval));
-  t->async_wait(boost::bind(clock, boost::asio::placeholders::error, t));
-}
-
-void signalHandler(const boost::system::error_code& error, int signal_number) {
-  if (!error) {
-    cout << endl << "Exiting" << endl;
-    cleanUp();
-    exit(0);
-  }
 }
 
 void cleanUp() {
