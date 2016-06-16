@@ -172,10 +172,10 @@ int main(int argc, char *argv[]) {
       ("bpmOffsetForMidiCC", po::value<int>(&bpmOffsetForMidiCC)->default_value(70), "bpmOffsetForMidiCC")
       ("velocityRandomOffset", po::value<int>(&velocityRandomOffset)->default_value(-40), "velocityRandomOffset")
       ("velocityMultiDeviceCtrl", po::value<bool>(&velocityMultiDeviceCtrl)->default_value(true), "velocityMultiDeviceCtrl")
+      ("velocityMidiCC", po::value<int>(&velocityMidiCC)->default_value(7), "velocityMidiCC")
       ("tempoMidiCC", po::value<int>(&tempoMidiCC)->default_value(10), "tempoMidiCC")
       ("chordMidiCC", po::value<int>(&chordMidiCC)->default_value(11), "chordMidiCC")
-      ("routeMidiCC", po::value<int>(&routeMidiCC)->default_value(12), "routeMidiCC")
-      ("velocityMidiCC", po::value<int>(&velocityMidiCC)->default_value(7), "velocityMidiCC");
+      ("routeMidiCC", po::value<int>(&routeMidiCC)->default_value(12), "routeMidiCC");
     po::variables_map vm;
 
     ifstream file(CONFIG_FILE);
@@ -207,16 +207,16 @@ int main(int argc, char *argv[]) {
       exit(0);
     }
 
-    midiin1->setCallback(&messageAtIn1);
-    midiin2->setCallback(&messageAtIn2);
-    midiin3->setCallback(&messageAtIn3);
-    midiin4->setCallback(&messageAtIn4);
+    if (midiin1->isPortOpen()) midiin1->setCallback(&messageAtIn1);
+    if (midiin2->isPortOpen()) midiin2->setCallback(&messageAtIn2);
+    if (midiin3->isPortOpen()) midiin3->setCallback(&messageAtIn3);
+    if (midiin4->isPortOpen()) midiin4->setCallback(&messageAtIn4);
 
     // Don't ignore sysex, timing, or active sensing messages
-    midiin1->ignoreTypes(false, false, false);
-    midiin2->ignoreTypes(false, false, false);
-    midiin3->ignoreTypes(false, false, false);
-    midiin4->ignoreTypes(false, false, false);
+    if (midiin1->isPortOpen()) midiin1->ignoreTypes(false, false, false);
+    if (midiin2->isPortOpen()) midiin2->ignoreTypes(false, false, false);
+    if (midiin3->isPortOpen()) midiin3->ignoreTypes(false, false, false);
+    if (midiin4->isPortOpen()) midiin4->ignoreTypes(false, false, false);
 
     // Note off message
     vector<unsigned char> offMsg;
@@ -798,12 +798,21 @@ void runInteractiveConfiguration() {
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-  cout << "Enable velocity multi device control (e.g. input 2 controls the velocity setting for input 2, 3 and 4)? (Y/n): ";
+  cout << "Enable velocity multi device control (e.g. input 3 controls the velocity setting for input 3, 2 and 1)? (Y/n): ";
   getline(cin, keyHit);
   if (keyHit == "n")
     cfg += string("velocityMultiDeviceCtrl = false") + "\n";
   else
     cfg += string("velocityMultiDeviceCtrl = true") + "\n";
+
+  cout << "Enter velocity MIDI CC number (default 7): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
+    cfg += string("velocityMidiCC = 7") + "\n";
+  else
+    cfg += string("velocityMidiCC = ") + convert::to_string(userIn) + "\n";
+
+  cin.clear();
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
   cout << "Enter tempo MIDI CC number (default 10): ";
   if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
@@ -828,15 +837,6 @@ void runInteractiveConfiguration() {
     cfg += string("routeMidiCC = 12") + "\n";
   else
     cfg += string("routeMidiCC = ") + convert::to_string(userIn) + "\n";
-
-  cin.clear();
-  cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-  cout << "Enter velocity MIDI CC number (default 7): ";
-  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
-    cfg += string("velocityMidiCC = 7") + "\n";
-  else
-    cfg += string("velocityMidiCC = ") + convert::to_string(userIn) + "\n";
 
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
