@@ -53,6 +53,7 @@ Each device and MIDI channel has a velocity setting set via the *velocity MIDI C
 * CC value=0 => OFF (velocity from the input device is unchanged)
 * CC value=1-126 (all notes get velocity=value)
 * CC value=127 (toggles random velocity mode on/off)
+
 **Random velocity mode**: Send CC value=127 once to activate, and again to disable. When active, all notes get a random velocity between the CC value and the *velocityRandomOffset*.
 Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120.
 The velocity setting is mirrored to all other input devices with a number lower than the current device. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
@@ -148,47 +149,33 @@ Compile MIDIcloro with `make` or the following command:
 To use MIDIcloro with the Nintendo Gameboy, you need the following: Gameboy, flash cart with LSDJ, Arduinoboy, Raspberry Pi, USB MIDI interface/cable.
 Start by installing MIDIcloro on the Raspberry Pi by following the instructions above. Connect the Gameboy to the Arduinoboy and connect the MIDI out port on the Arduinoboy to a MIDI in port on the USB MIDI interface (this port must be configured as an input in MIDIcloro). Set LSDJ and the Arduinoboy to MIDI out mode and start MIDIcloro on the Raspberry Pi.
 
-To control the clock tempo, chord mode, velocity and channel routing, send MIDI CC messages from LSDJ using the X command.
-The high byte of the X command sets the CC number as follows (high byte value = CC number): 0=1,1=2,2=3,3=7,4=10,5=11,6=12.
-The low byte of the X command sets the CC value from 0 - 120 in steps of 8 (low byte value = CC value): 0=0,1=8,2=16, ... ,E=112,F=120.
-The default CC numbers are 7 (X3\_) for velocity mode, 10 (X4\_) for clock tempo, 11 (X5\_) for chord mode and 12 (X6\_) for channel routing. The default clock tempo offset is 70.
+LSDJ examples:
 
-Examples (using default values):
-
+```
 X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
-
 X4A - If sent every beat: sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
 
 X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
-
 X52 - Same as above but generating a major chord.
-
 X53 - Same as above but generating a minor-low chord.
-
 X54 - Same as above but generating a major-low chord.
-
 X50 - Disables the chord mode.
 
 X60 - Route MIDI data sent on the current channel to MIDI channel 1.
-
 X64 - Route MIDI data sent on the current channel to MIDI channel 5.
-
 X6F - Route MIDI data sent on the current channel to MIDI channel 16.
-
+```
 
 ## Supported USB MIDI devices
 Devices stated to be class compliant or known to be working in Linux will probably work.
 Please contact me if you find a working/non-working device not listed here and I will update the list.
 
 Known working devices:
-
-IK Multimedia iRig Keys
-
-E-MU XMidi 1X1
+* IK Multimedia iRig Keys
+* E-MU XMidi 1X1
 
 Known problematic devices (not working out-of-the-box):
-
-M-Audio Midisport Uno
+* M-Audio Midisport Uno
 
 
 ## Other info
