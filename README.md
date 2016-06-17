@@ -11,21 +11,21 @@ MIDIcloro does the following:
 
 
 ## Example use-cases
-Sequencer/keyboard rig - Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
+**Sequencer/keyboard rig** - Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
 
-Gameboy as sequencer - Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/cable.
+**Gameboy as sequencer** - Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/cable.
 
-Clock only - Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
+**Clock only** - Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
 
 
 ## MIDI clock
-MIDI clock messages are sent immediately after starting MIDIcloro. An incoming start message resets the clock and the start message is forwarded to the output. Stop messages are also forwarded to the output. Clock signals are sent even after a stop message is received, so that connected equipment relying on MIDI clock is kept in sync. Any incoming clock messages are filtered out. If MIDI clock is disabled, no clock messages are generated and all incoming start, stop and clock messages are forwarded to the output.
-
-There are two ways of setting the clock tempo. It can be set directly using the configured tempo MIDI CC message: new tempo = configured offset + MIDI CC value (0-127). The tempo can also be set by tapping the tempo MIDI CC message every beat. The first tap will set the tempo instantly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
+There are two ways of setting the clock tempo:
+1. Send a single *tempo MIDI CC* message on one of the inputs: new tempo = configured offset + MIDI CC value (0-127).
+2. Tap the *tempo MIDI CC* message every beat. The first tap will set the tempo instantly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
 
 
 ## Chord mode
-Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord. Chord mode is set via the chord mode MIDI CC. The CC value range 0-127 is divided into intervals of 8 to set the following modes:
+Each device and MIDI channel has its individual chord mode setting. By setting a chord mode, every incoming note will generate other notes, creating a chord. Chord mode is set via the *chord mode MIDI CC*. The CC value range 0-127 is divided into intervals of 8 to set the following modes:
 * OFF
 * MINOR3
 * MAJOR3
@@ -45,32 +45,35 @@ Each device and MIDI channel has its individual chord mode setting. By setting a
 
 
 ## Channel routing
-Each device and MIDI channel also has its own routing setting. By changing the channel routing, the current channel will be changed to another of the 16 MIDI channels. Notes, CC messages and other MIDI data with channel will be routed to the new target channel. The routing is set to the current channel by default, and is controlled via the configured routing MIDI CC message. The MIDI CC value range (0-127) is divided into intervals of 8, where 0-7 sets channel 1, 8-15 channel 2 and so on.
+Each device and MIDI channel has its own routing setting. Set channel routing via the *routing MIDI CC*. The MIDI CC value range (0-127) is divided into intervals of 8, where 0-7 sets channel 1, 8-15 channel 2 and so on. By changing the channel routing, the current channel is changed to another of the 16 MIDI channels. Notes, CC messages and other MIDI data with channel will be routed to the new target channel.
 
 
 ## Velocity mode
-Each device and MIDI channel has a velocity setting set via MIDI CC as follows: CC value=0 => OFF (velocity from the input device is unchanged), CC value=1-126 (all notes get velocity=value), CC value=127 (toggles random velocity mode on/off).
-Random velocity mode: all notes get a random velocity between the latest CC value and a configurable offset.
-Velocity is scaled to squeeze the whole 0-127 range in between CC value 8-120.
-The velocity setting is mirrored to all other input devices with a number lower than the current device. The mirroring can be turned off in the settings.
+Each device and MIDI channel has a velocity setting set via the *velocity MIDI CC* as follows:
+* CC value=0 => OFF (velocity from the input device is unchanged)
+* CC value=1-126 (all notes get velocity=value)
+* CC value=127 (toggles random velocity mode on/off)
+**Random velocity mode**: Send CC value=127 once to activate, and again to disable. When active, all notes get a random velocity between the CC value and the *velocityRandomOffset*.
+Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120.
+The velocity setting is mirrored to all other input devices with a number lower than the current device. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
 
 
 ## Installation
 Install dependencies:
 
-`sudo apt-get install libasound2-dev`
-
-`sudo apt-get install libboost-system-dev`
-
-`sudo apt-get install libboost-program-options-dev`
-
-`sudo apt-get install libboost-regex-dev`
+```
+sudo apt-get install libasound2-dev
+sudo apt-get install libboost-system-dev
+sudo apt-get install libboost-program-options-dev
+sudo apt-get install libboost-regex-dev
+```
 
 Download the latest binary and make it executable:
 
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro`
-
-`chmod +x midicloro`
+```
+wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro
+chmod +x midicloro
+```
 
 Connect your devices and start the interactive configuration:
 
@@ -82,12 +85,14 @@ Run MIDIcloro with the current settings:
 
 `./midicloro`
 
-Automatically start MIDIcloro on boot:
+
+## Auto start
 Download the latest version of the auto-start script startm.sh and make it executable.
 
-`wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh`
-
-`chmod +x startm.sh`
+```
+wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh
+chmod +x startm.sh
+```
 
 Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
 In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `&` to let startm.sh run as a background process, otherwise your system will hang on boot.
@@ -112,40 +117,24 @@ If you get errors regarding missing libraries, make sure that the `libasound2-de
 ## Settings
 The settings are stored in midicloro.cfg. The interactive configuration (see above) is recommended the first time you run MIDIcloro since it detects all connected MIDI devices. The configuration file midicloro.cfg can also be edited manually (a restart of MIDIcloro is needed for the changes to take effect). All parameters are displayed below with default values (and explanations) where applicable:
 
+```
 input1 =
-
 input2 =
-
 input3 =
-
-input4 =
-
 output =
-
 enableClock = true (enable or disable clock)
-
 ignoreProgramChanges = true (ignore or allow incoming program change MIDI messages)
-
 initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
-
 tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps slower than this)
-
 tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps faster than this)
-
 bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
-
 velocityRandomOffset = -40
-
 velocityMultiDeviceCtrl = true
-
 tempoMidiCC = 10 (MIDI CC number for setting the tempo)
-
 chordMidiCC = 11 (MIDI CC number for setting the chord mode)
-
 routeMidiCC = 12 (MIDI CC number for setting the channel routing)
-
 velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
-
+```
 
 ## Build and compile
 Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed.
