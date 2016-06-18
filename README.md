@@ -11,11 +11,33 @@ MIDIcloro does the following:
 
 
 ## Example use-cases
-**Sequencer/keyboard rig** - Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
+* **Sequencer/keyboard rig**: Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
+* **Gameboy as sequencer**: Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/cable.
+* **Clock only**: Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
 
-**Gameboy as sequencer** - Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/cable.
 
-**Clock only** - Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
+## Settings
+This is an overview of the config file *midicloro.cfg*. The config file is built when running `./midicloro -c` (see *Run*). It can be manually edited (changes take effect on restart).
+
+```
+input1 = (inputs and output are detected automatically when running the configuration)
+input1mono = true (mono mode: when notes overlap, note off is sent leaving only the last note playing)
+input2 =
+input3 =
+output =
+enableClock = true (enable or disable clock)
+ignoreProgramChanges = true (ignore or allow incoming program change messages)
+initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
+tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping)
+tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping)
+bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
+velocityRandomOffset = -40 (in random velocity mode, notes get a random velocity between the velocityMidiCC value and this offset)
+velocityMultiDeviceCtrl = true (mirrors the velocity setting of the current input to inputs with lower number)
+velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
+tempoMidiCC = 10 (MIDI CC number for setting the tempo)
+chordMidiCC = 11 (MIDI CC number for setting the chord mode)
+routeMidiCC = 12 (MIDI CC number for setting the channel routing)
+```
 
 
 ## MIDI clock
@@ -76,11 +98,13 @@ wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro
 chmod +x midicloro
 ```
 
+
+## Run
 Connect your devices and start the interactive configuration:
 
 `./midicloro -c`
 
-Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed below. When the configuration is completed, MIDIcloro will start.
+Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed unser *Settings*. When the configuration is completed, MIDIcloro will start.
 
 Run MIDIcloro with the current settings:
 
@@ -115,39 +139,19 @@ If the program does not start automatically on boot, try to run it as:
 If you get errors regarding missing libraries, make sure that the `libasound2-dev` and `libboost` libraries exist in `/usr/lib/`.
 
 
-## Settings
-The settings are stored in midicloro.cfg. The interactive configuration (see above) is recommended the first time you run MIDIcloro since it detects all connected MIDI devices. The configuration file midicloro.cfg can also be edited manually (a restart of MIDIcloro is needed for the changes to take effect). All parameters are displayed below with default values (and explanations) where applicable:
-
-```
-input1 =
-input2 =
-input3 =
-output =
-enableClock = true (enable or disable clock)
-ignoreProgramChanges = true (ignore or allow incoming program change MIDI messages)
-initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
-tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps slower than this)
-tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping - the tempo will be set using the tempoMidiCC value for taps faster than this)
-bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
-velocityRandomOffset = -40
-velocityMultiDeviceCtrl = true
-tempoMidiCC = 10 (MIDI CC number for setting the tempo)
-chordMidiCC = 11 (MIDI CC number for setting the chord mode)
-routeMidiCC = 12 (MIDI CC number for setting the channel routing)
-velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
-```
-
 ## Build and compile
-Install the dependencies (see INSTALLATION). Also make sure gcc/g++ is installed.
+Install the dependencies (see *Installation*). Also make sure g++ is installed.
 
 Compile MIDIcloro with `make` or the following command:
 
-`g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -DBOOST_DATE_TIME_POSIX_TIME_STD_CONFIG -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex`
+`g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex`
 
 
 ## Gameboy usage
 To use MIDIcloro with the Nintendo Gameboy, you need the following: Gameboy, flash cart with LSDJ, Arduinoboy, Raspberry Pi, USB MIDI interface/cable.
-Start by installing MIDIcloro on the Raspberry Pi by following the instructions above. Connect the Gameboy to the Arduinoboy and connect the MIDI out port on the Arduinoboy to a MIDI in port on the USB MIDI interface (this port must be configured as an input in MIDIcloro). Set LSDJ and the Arduinoboy to MIDI out mode and start MIDIcloro on the Raspberry Pi.
+* Start by installing MIDIcloro on the Raspberry Pi by following the installation instructions.
+* Connect the Gameboy to the Arduinoboy and connect the MIDI out port on the Arduinoboy to a MIDI in port on the USB MIDI interface (this port must be configured as an input in MIDIcloro).
+* Set LSDJ and the Arduinoboy to MIDI out mode and start MIDIcloro on the Raspberry Pi.
 
 LSDJ examples:
 
@@ -179,9 +183,9 @@ Known problematic devices (not working out-of-the-box):
 
 
 ## Other info
-MIDIcloro is built and tested on a Raspberry Pi Model B+ running Raspbian Jessie. It may work without modifications on other Linux/Unix systems with ALSA support. MIDIcloro can also probably be built from source for Mac OS X and Windows without too much effort.
+MIDIcloro is built and tested on a Raspberry Pi 1 Model B+ running Raspbian Jessie Lite.
 
-MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks go to the author of RtMidi, Gary P. Scavone, for creating this great MIDI API. See rtmidi/readme for license and other information regarding RtMidi.
+MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks to Gary P. Scavone for creating this great framework. See rtmidi/readme for license and other information regarding RtMidi.
 
 
 ## Contact
@@ -191,5 +195,5 @@ david.ramstrom (at) gmail \_dot\_ com
 
 
 ## License
-MIDIcloro is licensed under the MIT license, see LICENSE for details.
+MIDIcloro is licensed under the MIT license, see the LICENSE file for details.
 
