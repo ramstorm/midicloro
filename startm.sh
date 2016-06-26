@@ -4,8 +4,8 @@ cd $1
 while true; do
   if ! ps aux | grep -v 'grep' | grep -v 'startm' | grep 'midicloro' ; then
     ./midicloro &
-    sleep 5s
   else
-    sleep 25s
+    exit 0
   fi
+  sleep 5s
 done

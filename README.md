@@ -2,22 +2,25 @@
 By David Ramström
 
 ## Introduction
-MIDIcloro does the following:
+MIDIcloro turns a Raspberry Pi into a little box of MIDI handling goodness! This is what it does:
 * Listens to MIDI data from up to 4 USB input devices (e.g. sequencers, keyboards, interfaces) and merges it into 1 output.
-* Adds MIDI clock, polyphonic chords, velocity and routing of channels to the MIDI data sent to the output.
-* Settings can be controlled in real-time via MIDI CC sent from the input devices.
+* Sends MIDI clock (tempo is controlled via MIDI CC).
+* Adds effects to MIDI notes (polyphonic chords, velocity and changing of channels - all controlled via MIDI CC).
 * Runs stand-alone on the Raspberry Pi. No need for a mouse, keyboard or monitor. Auto start script is included.
 * Plain old MIDI connectors (5-pin DIN) are supported by using a USB MIDI interface.
 
 
 ## Example use-cases
 * **Sequencer/keyboard rig**: Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
-* **Gameboy as sequencer**: Same scenario as above, but using a Nintendo Gameboy as MIDI sequencer. Translation of Gameboy link port data to MIDI needs to be handled before sent to MIDIcloro, i.e. you need: Gameboy, Arduinoboy, Raspberry Pi and a USB MIDI interface/cable.
+* **Gameboy as sequencer**: Same scenario as above, but using a Gameboy + Arduinoboy as MIDI sequencer.
+  * Use LSDJ MIDI out mode and connect Gameboy - Arduinoboy - MIDIcloro input port.
+  * Clock and other functions can easily be controlled from LSDJ. See *Gameboy examples*.
+  * Improve note stability by using a special Arduinoboy version together with MIDIcloro. See *Mono mode*.
 * **Clock only**: Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
 
 
 ## Settings
-This is an overview of the config file *midicloro.cfg*. The config file is built when running `./midicloro -c` (see *Run*). It can be manually edited (changes take effect on restart).
+The config file below gives a good overview of the many functions of MIDIcloro. The file is called *midicloro.cfg* and is created when running the initial config `./midicloro -c` (see *Initial configuration*).
 
 ```
 input1 = (inputs and output are detected automatically when running the configuration)
@@ -78,10 +81,47 @@ Each device and MIDI channel has a velocity setting set via the *velocity MIDI C
 
 **Random velocity mode**: Send CC value=127 once to activate, and again to disable. When active, all notes get a random velocity between the CC value and the *velocityRandomOffset*.
 Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120.
-The velocity setting is mirrored to all other input devices with a number lower than the current device. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
+The velocity setting is mirrored to all other input ports with a number lower than the current port. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
+
+
+## Mono mode
+By enabling mono mode for an input port (see *Settings*) only 1 note can play at the same time. MIDIcloro sends note-off when notes overlap.
+* Retrig is the default mono mode behavior (note-off first, then note-on).
+* Legato (note-on first, then note-off for the old note) can be enabled by sending *chord mode MIDI CC* value 0-7 when chord mode already is OFF (another value 0-7 toggles back to retrig). The *chord mode CC* is used here to spare another CC from being occupied by MIDIcloro.
+
+### Improved Gameboy and Arduinoboy note stability
+Mono mode together with a custom version of the Arduinoboy software can solve problems with missing notes which you might notice when sending MIDI on multiple channels from the Gameboy.
+* Upload this to your Arduinoboy: https://github.com/ledfyr/ab-midiout-lite
+* Enable mono mode on the MIDIcloro input port connected to the Arduinoboy.
+* Note stability is improved mainly by relieving the Arduino from sending note-off when notes overlap. Other modes and LED flashing etc are also stripped away.
+
+
+## Gameboy examples
+
+MIDIcloro is controlled from LSDJ via CC (the X command). Examples:
+
+```
+X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
+X4A - If sent for e.g. 4 beats in a row (RECOMMENDED): sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
+
+X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
+X52 - Same as above but generating a major chord.
+X53 - Same as above but generating a minor-low chord.
+X54 - Same as above but generating a major-low chord.
+X50 - Disables the chord mode.
+
+X60 - Route MIDI data sent on the current channel to MIDI channel 1.
+X64 - Route MIDI data sent on the current channel to MIDI channel 5.
+X6F - Route MIDI data sent on the current channel to MIDI channel 16.
+```
 
 
 ## Installation
+Prepare Raspberry Pi:
+* Flash a *Lite* version of Raspbian to an SD card (no desktop or GUI functions are needed).
+* Start the Raspberry Pi and log in as the default user "pi" (use SSH or monitor+keyboard).
+
+
 Install dependencies:
 
 ```
@@ -91,36 +131,45 @@ sudo apt-get install libboost-program-options-dev
 sudo apt-get install libboost-regex-dev
 ```
 
-Download the latest binary and make it executable:
+Download the MIDIcloro binary and make it executable:
 
 ```
-wget https://github.com/ledfyr/midicloro/releases/download/v1.4/midicloro
+wget https://github.com/ledfyr/midicloro/releases/download/v1.5/midicloro
 chmod +x midicloro
 ```
 
 
-## Run
-Connect your devices and start the interactive configuration:
+## Initial configuration
+Connect your devices and start the configuration:
 
 `./midicloro -c`
 
-Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed unser *Settings*. When the configuration is completed, MIDIcloro will start.
+Available input and output ports will be listed and you will be prompted to select which ones to use. You will then be prompted for the rest of the parameters listed under *Settings*.
 
-Run MIDIcloro with the current settings:
+When the configuration is finished, a config file is created (see *Settings*). This file can be edited manually (e.g. using nano). Changes take effect when restarting MIDIcloro.
+
+It is also possible to change settings by running the configuration again using `./midicloro -c`. However, if the MIDIcloro process is running in the background, shut it down before running the configuration. Find the process ID with `ps aux | grep midicloro` and shut it down with `sudo kill process_id_goes_here`.
+
+
+## Run
+To run MIDIcloro with the current settings:
 
 `./midicloro`
 
 
 ## Auto start
-Download the latest version of the auto-start script startm.sh and make it executable.
+Follow these instructions if you want to start MIDIcloro automatically when the Raspberry Pi starts up.
+
+Download the auto-start script and make it executable:
 
 ```
-wget https://github.com/ledfyr/midicloro/releases/download/v1.4/startm.sh
+wget https://github.com/ledfyr/midicloro/releases/download/v1.5/startm.sh
 chmod +x startm.sh
 ```
 
-Configure MIDIcloro with the inputs/output you wish to use and verify that it works.
-In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `&` to let startm.sh run as a background process, otherwise your system will hang on boot.
+If you haven't done so already, configure MIDIcloro with the inputs/output and settings you want to use and verify that it works (see *Initial configuration* and *Run*).
+
+In the file `/etc/rc.local`, add a call to the startm.sh script with the path to midicloro as parameter. Place it before the last exit command. IMPORTANT - add a `&` to let startm.sh run as a background process, otherwise your system may hang on boot.
 
 Example (midicloro and startm.sh are downloaded to /home/pi):
 
@@ -130,9 +179,9 @@ Add the following line above `exit 0` in the bottom of the file. Do not forget t
 
 `/home/pi/startm.sh /home/pi &`
 
-MIDIcloro will now start when booting up, without the need of logging in (this makes it possible to run MIDIcloro on a headless Raspberry Pi).
+MIDIcloro will now start when booting up, without the need of logging in. You are now running MIDIcloro stand-alone!
 
-If the program does not start automatically on boot, try to run it as:
+If the program fails to start automatically, try to run it as:
 
 `sudo ./midicloro`
 
@@ -147,32 +196,8 @@ Compile MIDIcloro with `make` or the following command:
 `g++ -Wall -D__LINUX_ALSA__ -o midicloro midicloro.cpp rtmidi/RtMidi.cpp -lasound -lpthread -lboost_system -lboost_program_options -lboost_regex`
 
 
-## Gameboy usage
-To use MIDIcloro with the Nintendo Gameboy, you need the following: Gameboy, flash cart with LSDJ, Arduinoboy, Raspberry Pi, USB MIDI interface/cable.
-* Start by installing MIDIcloro on the Raspberry Pi by following the installation instructions.
-* Connect the Gameboy to the Arduinoboy and connect the MIDI out port on the Arduinoboy to a MIDI in port on the USB MIDI interface (this port must be configured as an input in MIDIcloro).
-* Set LSDJ and the Arduinoboy to MIDI out mode and start MIDIcloro on the Raspberry Pi.
-
-LSDJ examples:
-
-```
-X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
-X4A - If sent every beat: sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
-
-X51 - Every note sent on the current channel will generate three MIDI notes creating a minor chord.
-X52 - Same as above but generating a major chord.
-X53 - Same as above but generating a minor-low chord.
-X54 - Same as above but generating a major-low chord.
-X50 - Disables the chord mode.
-
-X60 - Route MIDI data sent on the current channel to MIDI channel 1.
-X64 - Route MIDI data sent on the current channel to MIDI channel 5.
-X6F - Route MIDI data sent on the current channel to MIDI channel 16.
-```
-
 ## Supported USB MIDI devices
-Devices stated to be class compliant or known to be working in Linux will probably work.
-Please contact me if you find a working/non-working device not listed here and I will update the list.
+Any class compliant device should work. Please contact me if you find any working/non-working device not listed here and I will update the list.
 
 Known working devices:
 * IK Multimedia iRig Keys
@@ -185,7 +210,7 @@ Known problematic devices (not working out-of-the-box):
 ## Other info
 MIDIcloro is built and tested on a Raspberry Pi 1 Model B+ running Raspbian Jessie Lite.
 
-MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks to Gary P. Scavone for creating this great framework. See rtmidi/readme for license and other information regarding RtMidi.
+MIDIcloro uses RtMidi to handle the MIDI communication. Many thanks to Gary P. Scavone for creating this great framework. See rtmidi/readme for license and other info regarding RtMidi.
 
 
 ## Contact
