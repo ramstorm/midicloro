@@ -20,7 +20,7 @@ MIDIcloro turns a Raspberry Pi into a little box of MIDI handling goodness! This
 
 
 ## Settings
-The config file below gives a good overview of the many functions of MIDIcloro. The file is called *midicloro.cfg* and is created when running the initial config `./midicloro -c` (see *Initial configuration*).
+The config file below gives a good overview of the functions of MIDIcloro. The file is called *midicloro.cfg* and is created when running the initial configuration `./midicloro -c` (see *Initial configuration*).
 
 ```
 input1 = (inputs and output are detected automatically when running the configuration)
@@ -34,7 +34,7 @@ initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
 tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping)
 tapTempoMaxBpm = 200 (upper limit for tempoMidiCC tapping)
 bpmOffsetForMidiCC = 70 (this offset is added to the tempoMidiCC value to set the tempo)
-velocityRandomOffset = -40 (in random velocity mode, notes get a random velocity between the velocityMidiCC value and this offset)
+velocityRandomOffset = -40 (in random velocity mode, notes get a random velocity between the velocityMidiCC value and this offset - set to 0 to get random velocity between 0-127)
 velocityMultiDeviceCtrl = true (mirrors the velocity setting of the current input to inputs with lower number)
 velocityMidiCC = 7 (MIDI CC number for setting the velocity mode)
 tempoMidiCC = 10 (MIDI CC number for setting the tempo)
@@ -83,7 +83,7 @@ Each device and MIDI channel has a velocity setting set via the *velocity MIDI C
 Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120.
 The velocity setting is mirrored to all other input ports with a number lower than the current port. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
 
-**Gameboy users**: To enable random velocity mode, you need to send a CC value of 127 from the Gameboy/Arduinoboy. The Arduinoboy sends CC values of maximum 120, and not 127 by default. A solution is to use the custom Arduinoboy software described in *Mono mode* - it scales CC values to span the whole range 0-127 (there might also exist a setting in the original Arduinoboy software to scale CC values to reach 127).
+**Gameboy users**: To enable random velocity mode, you need to send a CC value of 127 from the Gameboy/Arduinoboy. The Arduinoboy sends CC values of maximum 120, and not 127 by default. A solution is to use the custom Arduinoboy software described in *Mono mode* - it scales CC values to span the whole range 0-127 (the scaling is done in such a way to still work as expected when controlling MIDIcloro via CC as in *Gameboy examples*). There might also exist a setting in the original Arduinoboy software to scale CC values to reach 127, or it can be modified to allow that.
 
 
 ## Mono mode
@@ -102,6 +102,14 @@ By enabling mono mode for an input port (see *Settings*) only 1 note can play at
 MIDIcloro is controlled from LSDJ via CC (the X command). Examples:
 
 ```
+X32 - Activates velocity mode: all MIDI notes on the current channel will get a low velocity.
+X36 - Increases the velocity.
+X3F - Enables random velocity mode: every note gets a random velocity between the last velocity setting (X36 above) and the configured offset (-40 by default).
+X3D - High velocity, random velocity mode still active.
+X31 - Low velocity, random velocity mode still active.
+X3F - Disables random velocity mode.
+X30 - Disables velocity mode: velocity is not changed by MIDIcloro anymore (velocity from the Gameboy/Arduinoboy is 100 by default).
+
 X4A - If sent once: sets clock tempo to 150 (offset 70 + value 80 = 150).
 X4A - If sent for e.g. 4 beats in a row (RECOMMENDED): sets clock tempo to 150 the first time and calculates the tempo according to the interval between the messages the following times.
 
