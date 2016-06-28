@@ -45,8 +45,9 @@ routeMidiCC = 12 (MIDI CC number for setting the channel routing)
 
 ## MIDI clock
 There are two ways of setting the clock tempo:
-1. Send a single *tempo MIDI CC* message on one of the inputs: new tempo = configured offset + MIDI CC value (0-127).
-2. Tap the *tempo MIDI CC* message every beat. The first tap will set the tempo instantly, and the each of the following taps will recalculate and set the tempo according to the tap interval.
+
+1. Send a single *tempo MIDI CC* message to one of the input ports: new tempo = configured offset + *tempo MIDI CC* value.
+2. Send *tempo MIDI CC* messages every beat at the desired tempo (a.k.a. "tapping"), 4 to 8 taps should be enough. The first tap will set the tempo instantly and each of the following taps will recalculate and set the clock tempo to the tapped BPM.
 
 
 ## Chord mode
