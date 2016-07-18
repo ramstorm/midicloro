@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
       ("input4mono", po::value<bool>(&input4mono)->default_value(false), "input4mono")
       ("output", po::value<string>(&output), "output")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
-      ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(true), "ignoreProgramChanges")
+      ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(false), "ignoreProgramChanges")
       ("initialBpm", po::value<int>(&initialBpm)->default_value(142), "initialBpm")
       ("tapTempoMinBpm", po::value<int>(&tapTempoMinBpm)->default_value(80), "tapTempoMinBpm")
       ("tapTempoMaxBpm", po::value<int>(&tapTempoMaxBpm)->default_value(200), "tapTempoMaxBpm")
@@ -432,14 +432,14 @@ void applyVelocity(vector<unsigned char> *message, int source) {
 
   if (velocityModes[source][channel] == VEL_RDM) {
     if (velocityRandomOffset < 0)
-      (*message)[2] = max(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 0);
+      (*message)[2] = max(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 1);
     else if (velocityRandomOffset > 0)
-      (*message)[2] = min(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 127);
+      (*message)[2] = min(velocity[source][channel]+(int)(velocityRandomOffset*random01()), 126) + 1;
     else
-      (*message)[2] = (int)(random01()*127);
+      (*message)[2] = max((int)(random01()*127), 1);
   }
   else {
-    (*message)[2] = velocity[source][channel];
+    (*message)[2] = max(velocity[source][channel], 1);
   }
 }
 
@@ -735,12 +735,12 @@ void runInteractiveConfiguration() {
   else
     cfg += string("enableClock = true") + "\n";
 
-  cout << "Ignore incoming program change messages? (Y/n): ";
+  cout << "Ignore incoming program change messages? (y/N): ";
   getline(cin, keyHit);
-  if (keyHit == "n")
-    cfg += string("ignoreProgramChanges = false") + "\n";
-  else
+  if (keyHit == "y")
     cfg += string("ignoreProgramChanges = true") + "\n";
+  else
+    cfg += string("ignoreProgramChanges = false") + "\n";
 
   cout << "Enter initial MIDI clock BPM (1-300, default 142): ";
   if (cin.peek()=='\n' || !(cin >> userIn) || userIn<1 || userIn>300)

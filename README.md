@@ -3,15 +3,15 @@ By David Ramström
 
 ## Introduction
 MIDIcloro turns a Raspberry Pi into a little box of MIDI handling goodness! This is what it does:
-* Listens to MIDI data from up to 4 USB input devices (e.g. sequencers, keyboards, interfaces) and merges it into 1 output.
+* Listens to MIDI data from up to 4 input devices (e.g. sequencers, keyboards, interfaces) and merges it into 1 output.
 * Sends MIDI clock (tempo is controlled via MIDI CC).
 * Adds effects to MIDI notes (polyphonic chords, velocity and changing of channels - all controlled via MIDI CC).
-* Runs stand-alone on the Raspberry Pi. No need for a mouse, keyboard or monitor. Auto start script is included.
-* Plain old MIDI connectors (5-pin DIN) are supported by using a USB MIDI interface.
+* Runs stand-alone on the Raspberry Pi. No need for a mouse, keyboard or monitor. Autostart script is included.
+* Plain old MIDI connectors (5-pin DIN) are supported by using a USB MIDI interface. Home-made MIDI ports connected to the GPIO will also work as long as ALSA is used.
 
 
 ## Example use-cases
-* **Sequencer/keyboard rig**: Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a USB MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
+* **Sequencer/keyboard rig**: Add clock, chords, velocity and channel routing to the data sent from a MIDI sequencer. The settings are controlled via knobs on the sequencer. Connect a MIDI keyboard as well to mix notes from the sequencer with some live jamming on the keys.
 * **Gameboy as sequencer**: Same scenario as above, but using a Gameboy + Arduinoboy as MIDI sequencer.
   * Use LSDJ MIDI out mode and connect Gameboy - Arduinoboy - MIDIcloro input port.
   * Clock and other functions can easily be controlled from LSDJ. See *Gameboy examples*.
@@ -28,7 +28,7 @@ input1mono = true (mono mode: when notes overlap, note off is sent leaving only 
 input2 =
 input3 =
 output =
-enableClock = true (enable or disable clock)
+enableClock = false (enable or disable clock)
 ignoreProgramChanges = true (ignore or allow incoming program change messages)
 initialBpm = 142 (this is the clock tempo used when starting MIDIcloro)
 tapTempoMinBpm = 80 (lower limit for tempoMidiCC tapping)
@@ -81,8 +81,10 @@ Each device and MIDI channel has a velocity setting set via the *velocity MIDI C
 * CC value=127 (toggles random velocity mode on/off)
 
 **Random velocity mode**: Send CC value=127 once to activate, and again to disable. When active, all notes get a random velocity between the CC value and the *velocityRandomOffset*.
-Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120.
-The velocity setting is mirrored to all other input ports with a number lower than the current port. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
+
+**Scaling**: Velocity is scaled to squeeze the whole 0-127 range in between CC values 8-120 to allow reaching max/min velocity without accidentally toggling ON/OFF/RANDOM.
+
+**Mirroring**: The velocity setting is mirrored to all other input ports with a number lower than the current port. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
 
 **Gameboy users**: To enable random velocity mode, you need to send a CC value of 127 from the Gameboy/Arduinoboy. The Arduinoboy sends CC values of maximum 120, and not 127 by default. A solution is to use the custom Arduinoboy software described in *Mono mode* - it scales CC values to span the whole range 0-127 (the scaling is done in such a way to still work as expected when controlling MIDIcloro via CC as in *Gameboy examples*). There might also exist a setting in the original Arduinoboy software to scale CC values to reach 127, or it can be modified to allow that.
 
@@ -92,10 +94,10 @@ By enabling mono mode for an input port (see *Settings*) only 1 note can play at
 * Retrig is the default mono mode behavior (note-off first, then note-on).
 * Legato (note-on first, then note-off for the old note) can be enabled by sending *chord mode MIDI CC* value 0-7 when chord mode already is OFF (another value 0-7 toggles back to retrig). The *chord mode CC* is used here to spare another CC from being occupied by MIDIcloro.
 
-**Improved Gameboy and Arduinoboy note stability**: Mono mode together with a custom version of the Arduinoboy software can solve problems with missing notes which you might notice when sending MIDI on multiple channels from the Gameboy.
+**Improved Gameboy and Arduinoboy note stability**: Mono mode together with a custom version of the Arduinoboy software can solve problems with missing notes which you might notice when sending MIDI on multiple channels from the Gameboy (in my case about 1 in every 30-50 notes was dropped out before, but with this fix it almost never happens).
 * Upload this to your Arduinoboy: https://github.com/ledfyr/ab-midiout-lite
 * Enable mono mode on the MIDIcloro input port connected to the Arduinoboy.
-* Note stability is improved mainly by relieving the Arduino from sending note-off when notes overlap. Other modes and LED flashing etc are also stripped away.
+* Note stability is improved mainly by relieving the Arduino from sending note-off on consecutive notes. Other modes than MIDI out are removed along with LED flashing and more.
 
 
 ## Gameboy examples
@@ -128,7 +130,7 @@ X6F - Route MIDI data sent on the current channel to MIDI channel 16.
 
 ## Installation
 Prepare Raspberry Pi:
-* Flash a *Lite* version of Raspbian to an SD card (no desktop or GUI functions are needed).
+* Flash a "Lite" version of Raspbian to an SD card (no desktop or GUI functions are needed).
 * Start the Raspberry Pi and log in as the default user "pi" (use SSH or monitor+keyboard).
 
 
@@ -167,7 +169,7 @@ To run MIDIcloro with the current settings:
 `./midicloro`
 
 
-## Auto start
+## Autostart
 Follow these instructions if you want to start MIDIcloro automatically when the Raspberry Pi starts up.
 
 Download the auto-start script and make it executable:
