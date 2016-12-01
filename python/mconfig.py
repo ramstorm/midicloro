@@ -1,0 +1,17 @@
+input1 = "iRig Keys"
+input2 = ""
+input3 = ""
+input4 = ""
+output = "E-MU XMidi1X1"
+enableClock = True
+ignoreProgramChanges = False
+initialBpm = 142
+tapTempoMinBpm = 80
+tapTempoMaxBpm = 200
+bpmOffsetForMidiCC = 70
+velocityRandomOffset = -40
+velocityMultiDeviceCtrl = True
+velocityMidiCC = 7
+tempoMidiCC = 10
+chordMidiCC = 11
+routeMidiCC = 12
