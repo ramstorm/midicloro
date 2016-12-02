@@ -4,10 +4,6 @@ import logging
 import sys
 import threading
 import mconfig
-try:
-    import Queue as queue
-except ImportError:  # Python 3
-    import queue
 from rtmidi.midiutil import open_midiport
 
 
@@ -23,40 +19,37 @@ class Mode():
         self.mono_legato = False
 
 class InputPort():
-    def __init__(self, mono):
-        self.modes = [Mode(x) for x in range(0, 16)]
+    def __init__(self, midiin, number, mono):
+        self.midiin = midiin
+        self.number = number
         self.mono = mono
+        self.modes = [Mode(x) for x in range(0, 16)]
 
 
 class MidiDispatcher(threading.Thread):
-    def __init__(self, midiin, midiout):
+    def __init__(self, input_ports, midiout):
         super(MidiDispatcher, self).__init__()
-        self.midiin = midiin
+        self.input_ports = input_ports
         self.midiout = midiout
         self._wallclock = time.time()
-        self.queue = queue.Queue()
-
-    def __call__(self, event, data=None):
-        message, deltatime = event
-        self._wallclock += deltatime
-        log.debug("IN: @%0.6f %r", self._wallclock, message)
-        self.queue.put((message, self._wallclock))
+        self.running = True
 
     def run(self):
-        log.debug("Attaching MIDI input callback handler.")
-        self.midiin.set_callback(self)
 
         while True:
-            event = self.queue.get()
-
-            if event is None:
+            if not self.running:
                 break
+            for ip in self.input_ports:
+                data = ip.midiin.get_message()
+                if data is None:
+                    continue
 
-            log.debug("Out: @%0.6f %r", event[1], event[0])
-            self.midiout.send_message(event[0])
+                msg, deltatime = data
+                log.debug("Input%s: @%0.6f %r", str(ip.number), deltatime, msg)
+                self.midiout.send_message(msg)
 
     def stop(self):
-        self.queue.put(None)
+        self.running = False
 
 
 
@@ -64,7 +57,11 @@ def main(args=None):
     logging.basicConfig(format="%(name)s: %(levelname)s - %(message)s", level=logging.DEBUG)
 
     try:
-        midiin, inport_name = open_midiport(mconfig.input1, "input")
+        input_ports = []
+        for ip in mconfig.inputs:
+            midiin, inport_name = open_midiport(ip["name"], "input")
+            input_ports.append(InputPort(midiin, ip["number"], ip["mono"]))
+
         midiout, outport_name = open_midiport(mconfig.output, "output")
     except IOError as exc:
         print(exc)
@@ -72,7 +69,7 @@ def main(args=None):
     except (EOFError, KeyboardInterrupt):
         return 0
 
-    dispatcher = MidiDispatcher(midiin, midiout)
+    dispatcher = MidiDispatcher(input_ports, midiout)
 
     print("Entering main loop. Press Control-C to exit.")
     try:
@@ -86,10 +83,11 @@ def main(args=None):
     finally:
         print("Exit.")
 
-        midiin.close_port()
-        midiout.close_port()
+        for ip in input_ports:
+            ip.midiin.close_port()
+            del ip.midiin
 
-        del midiin
+        midiout.close_port()
         del midiout
 
     return 0
@@ -97,25 +95,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]) or 0)
-
-#midiin = rtmidi.MidiIn()
-#inports = midiin.get_ports()
-
-#midiin.open_port(mconfig.input1)
-
-#print(inports[mconfig.input1])
-#print(mconfig.input1)
-
-#if available_ports:
-#    midiout.open_port(0)
-#else:
-#    midiout.open_virtual_port("My virtual output")
-#
-#note_on = [0x90, 60, 112] # channel 1, middle C, velocity 112
-#note_off = [0x80, 60, 0]
-#midiout.send_message(note_on)
-#time.sleep(0.5)
-#midiout.send_message(note_off)
-
-#del midiin
 

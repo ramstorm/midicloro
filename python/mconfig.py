@@ -1,7 +1,4 @@
-input1 = "iRig Keys"
-input2 = ""
-input3 = ""
-input4 = ""
+inputs = [{"name": "E-MU XMidi1X1", "number": 1, "mono": True}, {"name": "iRig Keys", "number": 2, "mono": False}]
 output = "E-MU XMidi1X1"
 enableClock = True
 ignoreProgramChanges = False
