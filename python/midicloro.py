@@ -3,11 +3,15 @@ import rtmidi
 import logging
 import sys
 import threading
+import collections
 import mconfig
 from rtmidi.midiutil import open_midiport
 
 
 log = logging.getLogger("midicloro")
+
+send_clock = False
+clock_interval = 60 / (mconfig.initial_bpm * 24)
 
 class Mode():
     def __init__(self, channel):
@@ -25,27 +29,57 @@ class InputPort():
         self.mono = mono
         self.modes = [Mode(x) for x in range(0, 16)]
 
+class ClockTimer(threading.Thread):
+    def __init__(self):
+        super(ClockTimer, self).__init__()
+        self.running = True
+
+    def run(self):
+        global send_clock
+        while True:
+            if not self.running:
+                break
+            send_clock = True
+            time.sleep(clock_interval)
+
+    def stop(self):
+        global send_clock
+        send_clock = False
+        self.running = False
+
 
 class MidiDispatcher(threading.Thread):
     def __init__(self, input_ports, midiout):
         super(MidiDispatcher, self).__init__()
         self.input_ports = input_ports
         self.midiout = midiout
-        self._wallclock = time.time()
+        #self.last_clock = 0
+        self.tap_tempo_times = collections.deque(maxlen=4)
         self.running = True
 
     def run(self):
-
+        global send_clock
         while True:
             if not self.running:
                 break
+            if send_clock:
+                self.midiout.send_message([248])
+                send_clock = False
+                #now = time.time()
+                #log.debug("Clock: delta=%0.6f", now - self.last_clock)
+                #self.last_clock = now
             for ip in self.input_ports:
                 data = ip.midiin.get_message()
-                if data is None:
+                if not data:
                     continue
 
                 msg, deltatime = data
                 log.debug("Input%s: @%0.6f %r", str(ip.number), deltatime, msg)
+
+                # Tap-tempo
+                if (msg[0] & 0b11110000) == 0b10110000 and msg[1] == mconfig.tempo_midi_cc:
+                    log.debug("TAP")
+
                 self.midiout.send_message(msg)
 
     def stop(self):
@@ -70,13 +104,17 @@ def main(args=None):
         return 0
 
     dispatcher = MidiDispatcher(input_ports, midiout)
+    clock = ClockTimer()
 
     print("Entering main loop. Press Control-C to exit.")
     try:
         dispatcher.start()
+        clock.start()
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
+        clock.stop()
+        clock.join()
         dispatcher.stop()
         dispatcher.join()
         print('')
