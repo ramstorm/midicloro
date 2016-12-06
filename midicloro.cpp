@@ -530,6 +530,13 @@ void handleMessage(vector<unsigned char> *message, int source) {
     midiout->sendMessage(message);
     resetClock = true;
   }
+  // Stop message: reset last notes
+  else if (enableClock && ((*message)[0] == BOOST_BINARY(11111100))) {
+    midiout->sendMessage(message);
+    for (int i=0; i<4; i++)
+      for (int j=0; j<16; j++)
+        lastNote[i][j] = -1;
+  }
   // Tap-tempo MIDI CC: use tap-tempo or tempo from MIDI message
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == tempoMidiCC) {
     long tapInterval = tapTempo();
