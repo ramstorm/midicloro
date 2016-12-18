@@ -15,7 +15,6 @@ MIDIcloro turns a Raspberry Pi into a little box of MIDI handling goodness! This
 * **Gameboy as sequencer**: Same scenario as above, but using a Gameboy + Arduinoboy as MIDI sequencer.
   * Use LSDJ MIDI out mode and connect Gameboy - Arduinoboy - MIDIcloro input port.
   * Clock and other functions can easily be controlled from LSDJ. See *Gameboy examples*.
-  * Improve note stability by using a special Arduinoboy version together with MIDIcloro. See *Mono mode*.
 * **Clock only**: Use MIDIcloro as a master clock. You can connect a MIDI controller to set the tempo with a knob.
 
 
@@ -86,18 +85,11 @@ Each device and MIDI channel has a velocity setting set via the *velocity MIDI C
 
 **Mirroring**: The velocity setting is mirrored to all other input ports with a number lower than the current port. The mirroring can be turned off in the settings by setting *velocityMultiDeviceCtrl* to false.
 
-**Gameboy users**: To enable random velocity mode, you need to send a CC value of 127 from the Gameboy/Arduinoboy. The Arduinoboy sends CC values of maximum 120, and not 127 by default. A solution is to use the custom Arduinoboy software described in *Mono mode* - it scales CC values to span the whole range 0-127 (the scaling is done in such a way to still work as expected when controlling MIDIcloro via CC as in *Gameboy examples*). There might also exist a setting in the original Arduinoboy software to scale CC values to reach 127, or it can be modified to allow that.
-
 
 ## Mono mode
 By enabling mono mode for an input port (see *Settings*) only 1 note can play at the same time. MIDIcloro sends note-off when notes overlap.
 * Retrig is the default mono mode behavior (note-off first, then note-on).
 * Legato (note-on first, then note-off for the old note) can be enabled by sending *chord mode MIDI CC* value 0-7 when chord mode already is OFF (another value 0-7 toggles back to retrig). The *chord mode CC* is used here to spare another CC from being occupied by MIDIcloro.
-
-**Improved Gameboy and Arduinoboy note stability**: Mono mode together with a custom version of the Arduinoboy software can solve problems with missing notes which you might notice when sending MIDI on multiple channels from the Gameboy (in my case about 1 in every 30-50 notes was dropped out before, but with this fix it almost never happens).
-* Upload this to your Arduinoboy: https://github.com/ledfyr/ab-midiout-lite
-* Enable mono mode on the MIDIcloro input port connected to the Arduinoboy.
-* Note stability is improved mainly by relieving the Arduino from sending note-off on consecutive notes. Other modes than MIDI out are removed along with LED flashing and more.
 
 
 ## Gameboy examples
