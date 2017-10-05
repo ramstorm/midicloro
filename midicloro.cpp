@@ -581,11 +581,11 @@ void handleMessage(vector<unsigned char> *message, int source) {
       setVelocityMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
   // Start message CC: Send midi clock start
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == startMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == startMidiCC && (*message)[2] >= 64) {
     midiout->sendMessage(clockStartMessage);
   }
   // Stop message CC: Send midi clock stop
-  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == stopMidiCC) {
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == stopMidiCC && (*message)[2] >= 64) {
     midiout->sendMessage(clockStopMessage);
   }
   // Other MIDI messages
@@ -766,18 +766,18 @@ void runInteractiveConfiguration() {
   else
     cfg += string("enableClock = true") + "\n";
 
-  cout << "Enter start clock MIDI CC number (default 12): ";
+  cout << "Enter start clock MIDI CC number (default 13): ";
   if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
-    cfg += string("startMidiCC = 12") + "\n";
+    cfg += string("startMidiCC = 13") + "\n";
   else
     cfg += string("startMidiCC = ") + convert::to_string(userIn) + "\n";
 
   cin.clear();
   cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-  cout << "Enter stop clock MIDI CC number (default 13): ";
+  cout << "Enter stop clock MIDI CC number (default 14): ";
   if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
-    cfg += string("stopMidiCC = 13") + "\n";
+    cfg += string("stopMidiCC = 14") + "\n";
   else
     cfg += string("stopMidiCC = ") + convert::to_string(userIn) + "\n";
 
