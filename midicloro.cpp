@@ -75,6 +75,8 @@ bool ignoreProgramChanges;
 int tempoMidiCC;
 int chordMidiCC;
 int routeMidiCC;
+int startMidiCC;
+int stopMidiCC;
 int velocityMidiCC;
 int bpmOffsetForMidiCC;
 long clockInterval; // Clock interval in ns
@@ -84,6 +86,8 @@ int velocityRandomOffset;
 bool velocityMultiDeviceCtrl;
 boost::mt19937 *randomGenerator;
 vector<unsigned char> *clockMessage;
+vector<unsigned char> *clockStartMessage;
+vector<unsigned char> *clockStopMessage;
 vector<unsigned char> *noteOffMessage;
 int lastNote[4][16] = {{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
                        {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
@@ -164,6 +168,8 @@ int main(int argc, char *argv[]) {
       ("input4mono", po::value<bool>(&input4mono)->default_value(false), "input4mono")
       ("output", po::value<string>(&output), "output")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
+      ("startMidiCC", po::value<int>(&startMidiCC)->default_value(13), "startMidiCC")
+      ("stopMidiCC", po::value<int>(&stopMidiCC)->default_value(14), "stopMidiCC")
       ("ignoreProgramChanges", po::value<bool>(&ignoreProgramChanges)->default_value(false), "ignoreProgramChanges")
       ("initialBpm", po::value<int>(&initialBpm)->default_value(142), "initialBpm")
       ("tapTempoMinBpm", po::value<int>(&tapTempoMinBpm)->default_value(80), "tapTempoMinBpm")
@@ -215,10 +221,20 @@ int main(int argc, char *argv[]) {
     offMsg.push_back(100);
     noteOffMessage = &offMsg;
 
-    // Clock message
+    // Clock messages
     vector<unsigned char> clkMsg;
     clkMsg.push_back(BOOST_BINARY(11111000));
     clockMessage = &clkMsg;
+
+    // Midi clock start
+    vector<unsigned char> clkStartMsg;
+    clkStartMsg.push_back(BOOST_BINARY(11111010));
+    clockStartMessage = &clkStartMsg;
+
+    // Midi clock stop
+    vector<unsigned char> clkStopMsg;
+    clkStopMsg.push_back(BOOST_BINARY(11111100));
+    clockStopMessage = &clkStopMsg;
 
     // Tap-tempo
     boost::circular_buffer<struct timespec> taps(4);
@@ -564,6 +580,14 @@ void handleMessage(vector<unsigned char> *message, int source) {
     else
       setVelocityMode(source, (*message)[0] & BOOST_BINARY(00001111), (*message)[2]);
   }
+  // Start message CC: Send midi clock start
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == startMidiCC && (*message)[2] >= 64) {
+    midiout->sendMessage(clockStartMessage);
+  }
+  // Stop message CC: Send midi clock stop
+  else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == stopMidiCC && (*message)[2] >= 64) {
+    midiout->sendMessage(clockStopMessage);
+  }
   // Other MIDI messages
   else if (!ignoreMessage((*message)[0])) {
     if ((((*message)[0] & BOOST_BINARY(11110000)) >= BOOST_BINARY(10000000)) &&
@@ -741,6 +765,24 @@ void runInteractiveConfiguration() {
     cfg += string("enableClock = false") + "\n";
   else
     cfg += string("enableClock = true") + "\n";
+
+  cout << "Enter start clock MIDI CC number (default 13): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
+    cfg += string("startMidiCC = 13") + "\n";
+  else
+    cfg += string("startMidiCC = ") + convert::to_string(userIn) + "\n";
+
+  cin.clear();
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+  cout << "Enter stop clock MIDI CC number (default 14): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>127)
+    cfg += string("stopMidiCC = 14") + "\n";
+  else
+    cfg += string("stopMidiCC = ") + convert::to_string(userIn) + "\n";
+
+  cin.clear();
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
   cout << "Ignore incoming program change messages? (y/N): ";
   getline(cin, keyHit);
