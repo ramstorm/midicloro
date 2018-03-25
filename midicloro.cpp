@@ -67,7 +67,10 @@ RtMidiIn *midiin1 = 0;
 RtMidiIn *midiin2 = 0;
 RtMidiIn *midiin3 = 0;
 RtMidiIn *midiin4 = 0;
-RtMidiOut *midiout = 0;
+RtMidiOut *midiout1 = 0;
+RtMidiOut *midiout2 = 0;
+RtMidiOut *midiout3 = 0;
+RtMidiOut *midiout4 = 0;
 bool done;
 bool enableClock;
 bool resetClock;
@@ -140,7 +143,7 @@ void messageAtIn4(double deltatime, vector<unsigned char> *message, void */*user
 string trimPort(bool doTrim, const string& str);
 bool openInputPort(RtMidiIn *in, string port);
 bool openOutputPort(RtMidiIn *in, string port);
-bool openPorts(string i1, string i2, string i3, string i4, string o);
+bool openPorts(string i1, string i2, string i3, string i4, string o1, string o2, string o3, string o4);
 void cleanUp();
 void runInteractiveConfiguration();
 
@@ -152,7 +155,7 @@ int main(int argc, char *argv[]) {
       usage();
 
     // Handle configuration
-    string input1, input2, input3, input4, output;
+    string input1, input2, input3, input4, output, output2, output3, output4;
     bool input1mono, input2mono, input3mono, input4mono;
     int initialBpm, tapTempoMinBpm, tapTempoMaxBpm;
 
@@ -166,7 +169,10 @@ int main(int argc, char *argv[]) {
       ("input3mono", po::value<bool>(&input3mono)->default_value(false), "input3mono")
       ("input4", po::value<string>(&input4), "input4")
       ("input4mono", po::value<bool>(&input4mono)->default_value(false), "input4mono")
-      ("output", po::value<string>(&output), "output")
+      ("output1", po::value<string>(&output), "output1")
+	  ("output2", po::value<string>(&output2), "output2")
+	  ("output3", po::value<string>(&output3), "output3")
+	  ("output4", po::value<string>(&output4), "output4")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
       ("startMidiCC", po::value<int>(&startMidiCC)->default_value(13), "startMidiCC")
       ("stopMidiCC", po::value<int>(&stopMidiCC)->default_value(14), "stopMidiCC")
@@ -205,10 +211,13 @@ int main(int argc, char *argv[]) {
     midiin2 = new RtMidiIn();
     midiin3 = new RtMidiIn();
     midiin4 = new RtMidiIn();
-    midiout = new RtMidiOut();
+    midiout1 = new RtMidiOut();
+	midiout2 = new RtMidiOut();
+	midiout3 = new RtMidiOut();
+	midiout4 = new RtMidiOut();
 
     // Assign MIDI ports
-    if (!openPorts(input1, input2, input3, input4, output)) {
+    if (!openPorts(input1, input2, input3, input4, output, output2, output3, output4)) {
       cout << "Exiting" << endl;
       cleanUp();
       exit(0);
@@ -253,7 +262,10 @@ int main(int argc, char *argv[]) {
     std::vector<unsigned char> incomingMsg;
 
     cout << "Starting" << endl;
-    midiout->sendMessage(clockMessage);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(clockMessage);
+	if (midiout2->isPortOpen()) midiout2->sendMessage(clockMessage);
+	if (midiout3->isPortOpen()) midiout3->sendMessage(clockMessage);
+	if (midiout4->isPortOpen()) midiout4->sendMessage(clockMessage);
     clock_gettime(CLOCK_MONOTONIC, &lastClock);
 
     while (!done) {
@@ -263,7 +275,10 @@ int main(int argc, char *argv[]) {
       }
       clock_gettime(CLOCK_MONOTONIC, &now);
       if(resetClock || ((now.tv_nsec-lastClock.tv_nsec)+((now.tv_sec-lastClock.tv_sec)*1000000000)) >= clockInterval) {
-        midiout->sendMessage(clockMessage);
+		if (midiout1->isPortOpen()) midiout1->sendMessage(clockMessage);
+		if (midiout2->isPortOpen()) midiout2->sendMessage(clockMessage);
+		if (midiout3->isPortOpen()) midiout3->sendMessage(clockMessage);
+		if (midiout4->isPortOpen()) midiout4->sendMessage(clockMessage);
         clock_gettime(CLOCK_MONOTONIC, &lastClock);
         resetClock = false;
       }
@@ -305,7 +320,7 @@ void transposeAndSend(vector<unsigned char> *message, int semiNotes) {
   if (note >= 0 && note <= 127){
     // This changes the message - keep in mind for the next note in the chord
     (*message)[1] = note;
-    midiout->sendMessage(message);
+    midiout1->sendMessage(message);
   }
 }
 
@@ -314,15 +329,15 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
   // Handle chord mode
   switch(chordModes[source][channel]) {
     case CHORD_OFF:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       break;
     case MINOR3:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       break;
     case MAJOR3:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       break;
@@ -337,64 +352,64 @@ void sendNoteOrChord(vector<unsigned char> *message, int source) {
       transposeAndSend(message, 4);
       break;
     case MINOR2:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 3);
       break;
     case MAJOR2:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 4);
       break;
     case M7:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       break;
     case MAJ7:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       break;
     case M9:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       break;
     case MAJ9:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       transposeAndSend(message, 4);
       transposeAndSend(message, 3);
       break;
     case SUS4:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 5);
       transposeAndSend(message, 2);
       break;
     case POWER2:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 7);
       break;
     case POWER3:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 7);
       transposeAndSend(message, 5);
       break;
     case OCTAVE2:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 12);
       break;
     case OCTAVE3:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       transposeAndSend(message, 12);
       transposeAndSend(message, 12);
       break;
     default:
-      midiout->sendMessage(message);
+      midiout1->sendMessage(message);
       break;
   }
 }
@@ -543,12 +558,12 @@ void handleMessage(vector<unsigned char> *message, int source) {
   }
   // Start message: pass it through and reset clock
   else if (enableClock && ((*message)[0] == BOOST_BINARY(11111010))) {
-    midiout->sendMessage(message);
+    midiout1->sendMessage(message);
     resetClock = true;
   }
   // Stop message: reset last notes
   else if (enableClock && ((*message)[0] == BOOST_BINARY(11111100))) {
-    midiout->sendMessage(message);
+    midiout1->sendMessage(message);
     for (int i=0; i<4; i++)
       for (int j=0; j<16; j++)
         lastNote[i][j] = -1;
@@ -582,11 +597,11 @@ void handleMessage(vector<unsigned char> *message, int source) {
   }
   // Start message CC: Send midi clock start
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == startMidiCC && (*message)[2] >= 64) {
-    midiout->sendMessage(clockStartMessage);
+    midiout1->sendMessage(clockStartMessage);
   }
   // Stop message CC: Send midi clock stop
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == stopMidiCC && (*message)[2] >= 64) {
-    midiout->sendMessage(clockStopMessage);
+    midiout1->sendMessage(clockStopMessage);
   }
   // Other MIDI messages
   else if (!ignoreMessage((*message)[0])) {
@@ -594,7 +609,7 @@ void handleMessage(vector<unsigned char> *message, int source) {
         (((*message)[0] & BOOST_BINARY(11110000)) <= BOOST_BINARY(11100000))) {
       routeChannel(message, source);
     }
-    midiout->sendMessage(message);
+    midiout1->sendMessage(message);
   }
 }
 
@@ -658,12 +673,15 @@ bool openOutputPort(RtMidiOut *out, string port) {
   return false;
 }
 
-bool openPorts(string i1, string i2, string i3, string i4, string o) {
+bool openPorts(string i1, string i2, string i3, string i4, string o1, string o2, string o3, string o4) {
   openInputPort(midiin1, i1);
   openInputPort(midiin2, i2);
   openInputPort(midiin3, i3);
   openInputPort(midiin4, i4);
-  return openOutputPort(midiout, o);
+  openOutputPort(midiout2, o2);
+  openOutputPort(midiout3, o3);
+  openOutputPort(midiout4, o4);
+  return openOutputPort(midiout1, o1);
 }
 
 void cleanUp() {
@@ -671,7 +689,10 @@ void cleanUp() {
   delete midiin2;
   delete midiin3;
   delete midiin4;
-  delete midiout;
+  delete midiout1;
+  delete midiout2;
+  delete midiout3;
+  delete midiout4;
 }
 
 void runInteractiveConfiguration() {
