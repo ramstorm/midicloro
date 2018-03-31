@@ -558,12 +558,18 @@ void handleMessage(vector<unsigned char> *message, int source) {
   }
   // Start message: pass it through and reset clock
   else if (enableClock && ((*message)[0] == BOOST_BINARY(11111010))) {
-    midiout1->sendMessage(message);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(message);
+    if (midiout2->isPortOpen()) midiout2->sendMessage(message);
+    if (midiout3->isPortOpen()) midiout3->sendMessage(message);
+    if (midiout4->isPortOpen()) midiout4->sendMessage(message);
     resetClock = true;
   }
   // Stop message: reset last notes
   else if (enableClock && ((*message)[0] == BOOST_BINARY(11111100))) {
-    midiout1->sendMessage(message);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(message);
+    if (midiout2->isPortOpen()) midiout2->sendMessage(message);
+    if (midiout3->isPortOpen()) midiout3->sendMessage(message);
+    if (midiout4->isPortOpen()) midiout4->sendMessage(message);
     for (int i=0; i<4; i++)
       for (int j=0; j<16; j++)
         lastNote[i][j] = -1;
@@ -597,11 +603,17 @@ void handleMessage(vector<unsigned char> *message, int source) {
   }
   // Start message CC: Send midi clock start
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == startMidiCC && (*message)[2] >= 64) {
-    midiout1->sendMessage(clockStartMessage);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(clockStartMessage);
+    if (midiout2->isPortOpen()) midiout2->sendMessage(clockStartMessage);
+    if (midiout3->isPortOpen()) midiout3->sendMessage(clockStartMessage);
+    if (midiout4->isPortOpen()) midiout4->sendMessage(clockStartMessage);
   }
   // Stop message CC: Send midi clock stop
   else if (((*message)[0] & BOOST_BINARY(11110000)) == BOOST_BINARY(10110000) && message->size() > 2 && (*message)[1] == stopMidiCC && (*message)[2] >= 64) {
-    midiout1->sendMessage(clockStopMessage);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(clockStopMessage);
+    if (midiout2->isPortOpen()) midiout2->sendMessage(clockStopMessage);
+    if (midiout3->isPortOpen()) midiout3->sendMessage(clockStopMessage);
+    if (midiout4->isPortOpen()) midiout4->sendMessage(clockStopMessage);
   }
   // Other MIDI messages
   else if (!ignoreMessage((*message)[0])) {
@@ -609,7 +621,10 @@ void handleMessage(vector<unsigned char> *message, int source) {
         (((*message)[0] & BOOST_BINARY(11110000)) <= BOOST_BINARY(11100000))) {
       routeChannel(message, source);
     }
-    midiout1->sendMessage(message);
+    if (midiout1->isPortOpen()) midiout1->sendMessage(message);
+    if (midiout2->isPortOpen()) midiout2->sendMessage(message);
+    if (midiout3->isPortOpen()) midiout3->sendMessage(message);
+    if (midiout4->isPortOpen()) midiout4->sendMessage(message);
   }
 }
 
@@ -714,6 +729,7 @@ void runInteractiveConfiguration() {
   string portName;
   int userIn;
   int addedIns = 0;
+  int addedOuts = 0;
   cout << endl <<
     "Note about hardware id (HWid, example: 11:0). "
     "The HWid for a port might change if you connect it to another USB port."
@@ -760,6 +776,7 @@ void runInteractiveConfiguration() {
     addedIns++;
     inputs[userIn] = "";
   }
+  
   // Output
   nPorts = cfgMidiOut->getPortCount();
   cout << endl << "Available output ports:" << endl;
@@ -768,20 +785,35 @@ void runInteractiveConfiguration() {
     outputs.push_back(portName);
     cout << i << ". " << portName << endl;
   }
-  cout << "Enter port number for output: ";
-  while (!(cin >> userIn) || userIn < 0 || userIn >= nPorts) {
-    cout << "Incorrect port number, try again: ";
+
+  for (int i=0; i<4; i++) {
+    cout << "Enter port number for output " << i+1 << " (press enter to disable)" << ": ";
+    if (addedOuts>=nPorts) {
+      cout << endl << "Disabling output" << i+1 << endl;
+      cfg += string("output") + convert::to_string(i+1) + string(" =\n");
+      continue;
+    }
+    else if (cin.peek()=='\n' || !(cin >> userIn) || userIn<0 || userIn>=nPorts || outputs[userIn]=="") {
+      cout << "Disabling output " << i+1 << endl;
+      cfg += string("output") + convert::to_string(i+1) + string(" =\n");
+      cin.clear();
+      cin.ignore(numeric_limits<streamsize>::max(), '\n');
+      continue;
+    }
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
+    cout << "Store hardware id for output " << i+1 << "? (y/N): ";
+    getline(cin, keyHit);
+    if (keyHit == "y")
+      cfg += string("output") + convert::to_string(i+1) + string(" = ") + outputs[userIn] + "\n";
+    else
+      cfg += string("output") + convert::to_string(i+1) + string(" = ") + trimPort(true, outputs[userIn]) + "\n";
+
+    addedOuts++;
+    outputs[userIn] = "";
   }
-  cin.clear();
-  cin.ignore(numeric_limits<streamsize>::max(), '\n');
-  cout << "Store hardware id? (y/N): ";
-  getline(cin, keyHit);
-  if (keyHit == "y")
-    cfg += string("output = ") + outputs[userIn] + "\n";
-  else
-    cfg += string("output = ") + trimPort(true, outputs[userIn]) + "\n";
+
 
   cout << endl << "Enable MIDI clock? (Y/n): ";
   getline(cin, keyHit);
