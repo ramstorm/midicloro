@@ -73,6 +73,7 @@ RtMidiOut *midiout2 = 0;
 RtMidiOut *midiout3 = 0;
 RtMidiOut *midiout4 = 0;
 bool done;
+int sleepUSec;
 bool enableClock;
 bool resetClock;
 bool ignoreProgramChanges;
@@ -174,6 +175,7 @@ int main(int argc, char *argv[]) {
 	  ("output2", po::value<string>(&output2), "output2")
 	  ("output3", po::value<string>(&output3), "output3")
 	  ("output4", po::value<string>(&output4), "output4")
+	  ("sleepUSec", po::value<int>(&sleepUSec)->default_value(100), "sleepUSec")
       ("enableClock", po::value<bool>(&enableClock)->default_value(true), "enableClock")
       ("startMidiCC", po::value<int>(&startMidiCC)->default_value(13), "startMidiCC")
       ("stopMidiCC", po::value<int>(&stopMidiCC)->default_value(14), "stopMidiCC")
@@ -283,7 +285,7 @@ int main(int argc, char *argv[]) {
         clock_gettime(CLOCK_MONOTONIC, &lastClock);
         resetClock = false;
       }
-      usleep (100);
+      usleep (sleepUSec);
     }
     cout << endl;
   }
@@ -816,6 +818,11 @@ void runInteractiveConfiguration() {
     outputs[userIn] = "";
   }
 
+  cout << "Enter number of microseconds to sleep between loops. Low for better MIDI performance, high for slow machines (Min: 10, Max 10000, default 100): ";
+  if (cin.peek()=='\n' || !(cin >> userIn) || userIn<10 || userIn>10000)
+    cfg += string("sleepUSec = 100") + "\n";
+  else
+    cfg += string("sleepUSec = ") + convert::to_string(userIn) + "\n";
 
   cout << endl << "Enable MIDI clock? (Y/n): ";
   getline(cin, keyHit);
