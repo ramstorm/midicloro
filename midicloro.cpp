@@ -657,6 +657,9 @@ bool openInputPort(RtMidiIn *in, string port) {
 }
 
 bool openOutputPort(RtMidiOut *out, string port) {
+	if (port.empty())
+    return false;
+    
   // Match full name if port contains hardware id (example: 11:0), otherwise remove the hardware id before matching
   bool doTrim = !boost::regex_match(port, boost::regex("(.+)\\s([0-9]+):([0-9]+)"));
   string portName;
