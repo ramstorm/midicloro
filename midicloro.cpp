@@ -20,6 +20,7 @@
 #include <map>
 #include <signal.h>
 #include <time.h>
+#include <unistd.h>
 #include <boost/utility/binary.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/program_options.hpp>
@@ -282,6 +283,7 @@ int main(int argc, char *argv[]) {
         clock_gettime(CLOCK_MONOTONIC, &lastClock);
         resetClock = false;
       }
+      usleep (100);
     }
     cout << endl;
   }
